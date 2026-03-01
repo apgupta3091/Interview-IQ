@@ -1,0 +1,10 @@
+# compiled binaries
+server
+*.exe
+
+# environment files
+.env
+.env.*
+
+# test cache
+*.test
