@@ -7,10 +7,10 @@ import (
 
 const (
 	baseScore         = 100
-	attemptPenalty    = 10  // deducted per extra attempt beyond the first
-	maxAttemptPenalty = 40  // cap so score can't go below 60 from attempts alone
-	solutionPenalty   = 25  // deducted if the user looked at the solution
-	minScore          = 5   // floor — logging any problem is worth something
+	attemptPenalty    = 10 // deducted per extra attempt beyond the first
+	maxAttemptPenalty = 40 // cap so score can't go below 60 from attempts alone
+	solutionPenalty   = 25 // deducted if the user looked at the solution
+	minScore          = 5  // floor — logging any problem is worth something
 
 	decayGraceDays  = 3    // no decay within the first 3 days
 	decayPerDay     = 2.0  // points lost per day after grace period
@@ -23,23 +23,15 @@ func ComputeScore(attempts int, lookedAtSolution bool) int {
 	score := baseScore
 
 	// penalise extra attempts beyond the first, capped
-	extraAttempts := attempts - 1
-	if extraAttempts < 0 {
-		extraAttempts = 0
-	}
-	penalty := extraAttempts * attemptPenalty
-	if penalty > maxAttemptPenalty {
-		penalty = maxAttemptPenalty
-	}
+	extraAttempts := max(attempts-1, 0)
+	penalty := min(extraAttempts*attemptPenalty, maxAttemptPenalty)
 	score -= penalty
 
 	if lookedAtSolution {
 		score -= solutionPenalty
 	}
 
-	if score < minScore {
-		score = minScore
-	}
+	score = max(score, minScore)
 	return score
 }
 
@@ -63,8 +55,6 @@ func ApplyDecay(score int, solvedAt time.Time) float64 {
 	decayDays := daysSince - decayGraceDays
 	decayed := float64(score) - (decayDays * decayPerDay)
 
-	if decayed < floor {
-		decayed = floor
-	}
+	decayed = max(decayed, floor)
 	return math.Round(decayed*10) / 10
 }

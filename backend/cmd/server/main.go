@@ -36,8 +36,8 @@ func main() {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
 
-	authHandler     := &handlers.AuthHandler{DB: database}
-	problemHandler  := &handlers.ProblemHandler{DB: database}
+	authHandler := &handlers.AuthHandler{DB: database}
+	problemHandler := &handlers.ProblemHandler{DB: database}
 	categoryHandler := &handlers.CategoryHandler{DB: database}
 
 	r.Get("/health", healthHandler)
@@ -53,6 +53,7 @@ func main() {
 			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
 			r.Get("/categories/stats", categoryHandler.GetStats)
+			r.Get("/categories/weakest", categoryHandler.GetWeakest)
 		})
 	})
 

@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 )
 
 func RunMigrations(db *sql.DB, migrationsDir string) error {
@@ -21,7 +21,7 @@ func RunMigrations(db *sql.DB, migrationsDir string) error {
 			files = append(files, filepath.Join(migrationsDir, e.Name()))
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 
 	for _, f := range files {
 		content, err := os.ReadFile(f)
