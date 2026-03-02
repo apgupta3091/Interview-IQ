@@ -1,0 +1,40 @@
+---
+description: Universal naming, commenting, and code quality standards for all files
+alwaysApply: true
+---
+
+# Universal Standards
+
+## Naming
+
+| Context | Format | Examples |
+|---|---|---|
+| Variables / functions | `camelCase` | `userID`, `solvedAt`, `computeScore` |
+| Go exported names | `PascalCase` | `AuthService`, `ComputeScore` |
+| DB tables / columns | `lower_case_with_underscores` | `users`, `user_id`, `looked_at_solution` |
+| Go constants (unexported) | `camelCase` | `baseScore`, `decayPerDay` |
+| TS/API constants | `SCREAMING_SNAKE_CASE` | `AUTH_INVALID_TOKEN` |
+| URLs / routes | `dash-separated-words`, plural | `/api/problems`, `/api/categories/stats` |
+
+## Comments
+
+- Required for all non-trivial logic — especially score/decay math, SQL with non-obvious filters, and middleware context wiring
+- The constants in `models/score.go` must always have inline comments explaining the rationale
+- No comments that just restate what the code does — explain *why*
+
+## TODOs
+
+```go
+// TODO(#42): Add rate limiting to auth endpoints — currently unbounded
+```
+- Must reference a GitHub issue number
+- Include the reason, not just the task
+
+## Code Quality
+
+- ❌ Functions > 50 lines
+- ❌ Nesting > 4 levels deep
+- ❌ Magic numbers or strings — use named constants
+- ❌ Commented-out code left in the codebase
+- ❌ `console.log` / `log.Printf` debug statements committed
+- ❌ Missing error handling

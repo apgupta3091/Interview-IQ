@@ -1,0 +1,55 @@
+---
+description: Interview-IQ project overview, stack, and repository structure
+alwaysApply: true
+---
+
+# Interview-IQ Project
+
+Interview prep tracker: users log LeetCode-style problems, get a score per attempt, scores decay over time (simulating forgetting), and a radar chart shows per-category skill strength.
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Go 1.26, Chi v5, PostgreSQL 16, `database/sql` + `lib/pq` (no ORM) |
+| Auth | JWT HS256 (7-day), bcrypt |
+| Frontend | React 19, Vite, TypeScript strict, ShadCN/UI, Recharts, Axios, React Router |
+
+## Repository Structure
+
+```
+interview-iq/
+├── backend/
+│   ├── cmd/server/main.go          # Entry point: env, DI wiring, Chi router
+│   ├── internal/
+│   │   ├── auth/jwt.go             # Token generation + parsing
+│   │   ├── db/                     # Connection pool + migration runner
+│   │   ├── handlers/               # HTTP handlers (thin — decode → service → respond)
+│   │   ├── middleware/auth.go      # JWT validation, UserIDFromContext
+│   │   ├── models/                 # Plain structs + score/decay logic
+│   │   ├── repository/             # SQL implementations of repo interfaces
+│   │   └── service/                # Business logic + validation
+│   └── migrations/                 # Numbered SQL files (001_init.sql, ...)
+└── frontend/                       # Vite + React (to be scaffolded)
+    └── src/
+        ├── pages/                  # Route-level components
+        ├── components/             # Reusable components; ui/ = ShadCN (don't edit)
+        ├── lib/api.ts              # Axios instance with JWT interceptor
+        ├── hooks/                  # Custom React hooks
+        └── types/                  # TS types mirroring API response shapes
+```
+
+## Score Model (critical — never change without updating tests)
+
+- `ComputeScore(attempts, lookedAtSolution)` — called **once at write time**, stored in DB
+- `ApplyDecay(score, solvedAt)` — called **at read time only**, never persisted
+- Grace period: 3 days; decay: 2pts/day after grace; floor: 30% of original score
+
+## Environment Variables
+
+| Variable | Default (dev) |
+|---|---|
+| `PORT` | `8080` |
+| `DATABASE_URL` | `postgres://interviewiq:interviewiq_secret@localhost:5432/interviewiq?sslmode=disable` |
+| `JWT_SECRET` | `dev-secret-change-in-production` |
+| `VITE_API_URL` (frontend) | `http://localhost:8080` |

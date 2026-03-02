@@ -1,0 +1,102 @@
+---
+description: React/Vite/TypeScript/ShadCN frontend standards and patterns
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend Standards
+
+## TypeScript
+
+- Strict mode required (`"strict": true` in `tsconfig.json`)
+- Always use `type` imports for type-only usage:
+  ```typescript
+  import type { Problem, CategoryStats } from '@/types/api';
+  ```
+- No `any` — use `unknown` and narrow with type guards
+- Define all API response shapes in `src/types/api.ts` matching backend JSON exactly:
+  ```typescript
+  export type Problem = {
+    id: number;
+    name: string;
+    category: string;
+    difficulty: 'easy' | 'medium' | 'hard';
+    attempts: number;
+    looked_at_solution: boolean;
+    time_taken_mins: number;
+    score: number;
+    decayed_score: number;   // computed server-side at read time
+    solved_at: string;       // ISO 8601
+    created_at: string;
+  };
+  ```
+
+## ShadCN/UI
+
+- Prefer ShadCN components over raw HTML for all UI
+- Install with: `npx shadcn@latest add <component>`
+- `src/components/ui/` is auto-generated — **never edit these files manually**
+- Build feature components in `src/components/` by composing ShadCN primitives
+
+## Axios API Client (`src/lib/api.ts`)
+
+```typescript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080',
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// On 401: clear token and redirect to /login
+api.interceptors.response.use(undefined, (error) => {
+  if (error.response?.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  }
+  return Promise.reject(error);
+});
+
+export default api;
+```
+
+- All API calls go through this instance — never use `fetch` directly
+- JWT stored in `localStorage` under key `token`
+
+## React Patterns
+
+- Functional components + hooks only — no class components
+- Pages (route-level) in `src/pages/`, reusable components in `src/components/`
+- Custom hooks in `src/hooks/` (e.g., `useAuth`, `useProblems`, `useCategoryStats`)
+- Colocate state with the component that owns it; lift only when genuinely shared
+- Components must stay under 200 lines — extract sub-components or hooks when larger
+- No `console.log` in committed code
+
+## Radar Chart (Recharts)
+
+```typescript
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
+
+type RadarDatum = {
+  category: string;
+  strength: number; // 0–100, decayed average score for that category
+};
+```
+
+- Show all 17 categories on the chart even if `strength` is 0 (makes skill gaps visible)
+- Always wrap in `ResponsiveContainer` for fluid sizing
+
+## React Router
+
+- Define all routes in `src/main.tsx` (or a dedicated `src/routes.tsx`)
+- Protect auth-required routes with a wrapper that checks `localStorage` for a token
+- Use `<Navigate>` for redirects — never `window.location.href` inside components
+
+## Path Alias
+
+`@/` maps to `src/` — configure in both `vite.config.ts` and `tsconfig.json`.

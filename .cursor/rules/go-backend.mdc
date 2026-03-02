@@ -1,0 +1,134 @@
+---
+description: Go backend architecture, handler/service/repository patterns, testing, and DB standards
+globs: backend/**/*.go
+alwaysApply: false
+---
+
+# Go Backend Standards
+
+## 3-Layer Architecture (never skip layers)
+
+```
+Handler  →  Service interface  →  Repository interface  →  sql implementation
+```
+
+- **Handlers**: decode request → call service → map errors → write response. Nothing else.
+- **Services**: all validation and business logic. Own `ValidationError` and sentinel errors.
+- **Repositories**: SQL only. No validation, no scoring, no business rules.
+- Each layer communicates via **interfaces** — inject interfaces, not concrete types.
+
+## Handler Pattern
+
+```go
+func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
+    userID := middleware.UserIDFromContext(r.Context())  // always from JWT, never from body
+
+    var req logProblemRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    p, err := h.Service.Log(r.Context(), userID, ...)
+    if err != nil {
+        var ve service.ValidationError
+        if errors.As(err, &ve) {
+            writeError(w, http.StatusBadRequest, ve.Message)
+            return
+        }
+        writeError(w, http.StatusInternalServerError, "failed to log problem")
+        return
+    }
+    writeJSON(w, http.StatusCreated, toProblemResponse(p))
+}
+```
+
+- Always use `writeJSON` / `writeError` from `handlers/helpers.go` — never call `json.NewEncoder` or `w.WriteHeader` directly
+
+## Service Error Pattern
+
+```go
+var ErrEmailTaken = errors.New("email already registered")
+type ValidationError struct{ Message string }
+func (e ValidationError) Error() string { return e.Message }
+
+// Translate repository errors — never let ErrNotFound/ErrDuplicate escape the service layer
+if errors.Is(err, repository.ErrDuplicate) {
+    return "", "", ErrEmailTaken
+}
+```
+
+## Repository Pattern
+
+```go
+// Always use *Context variants
+rows, err := r.db.QueryContext(ctx, `SELECT ...`, args...)
+defer rows.Close()  // immediately after successful open
+// ... iterate ...
+if err := rows.Err(); err != nil { return nil, err }
+
+// Map sql.ErrNoRows → repository.ErrNotFound
+if errors.Is(err, sql.ErrNoRows) { return 0, repository.ErrNotFound }
+```
+
+## Error Handling
+
+```go
+// Always wrap with context
+return fmt.Errorf("users.Create: %w", err)
+
+// Use errors.As for typed errors, errors.Is for sentinel errors
+// Never discard errors (except defer close)
+```
+
+## Logging
+
+```go
+// ✅ Use slog with context for all new code
+slog.InfoContext(ctx, "problem logged", "user_id", userID, "problem_id", p.ID)
+slog.ErrorContext(ctx, "db insert failed", "error", err)
+
+// ❌ Never use log.Fatal outside main.go
+// ❌ Never use bare slog.Info() when ctx is available
+```
+
+## Testing
+
+```go
+func TestComputeScore(t *testing.T) {
+    cases := []struct {
+        name             string
+        attempts         int
+        lookedAtSolution bool
+        want             int
+    }{
+        {"perfect", 1, false, 100},
+        {"peeked", 1, true, 75},
+    }
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            got := ComputeScore(tc.attempts, tc.lookedAtSolution)
+            if got != tc.want {
+                t.Errorf("got %d, want %d", got, tc.want)
+            }
+        })
+    }
+}
+```
+- Table-driven tests only — `[]struct{ name, ... }` + `t.Run`
+- Standard `testing` package — no external test frameworks
+- Test services using stub/mock repository implementations (inject the interface)
+
+## Database
+
+- No ORM — `database/sql` + `lib/pq` only
+- Tables: `lower_case_with_underscores`
+- Never use `SELECT *` — always list columns explicitly
+- Migrations: new numbered file per schema change, never edit deployed migrations
+- Existing indexes: `problems(user_id)`, `problems(category)`
+
+## Valid Problem Categories
+
+`array` `string` `hash-map` `two-pointers` `sliding-window` `binary-search` `stack` `queue` `linked-list` `tree` `graph` `heap` `dp` `backtracking` `greedy` `math` `other`
+
+Category validation belongs in the service layer.
