@@ -12,6 +12,8 @@ import (
 	"github.com/apgupta3091/interview-iq/internal/db"
 	"github.com/apgupta3091/interview-iq/internal/handlers"
 	"github.com/apgupta3091/interview-iq/internal/middleware"
+	"github.com/apgupta3091/interview-iq/internal/repository"
+	"github.com/apgupta3091/interview-iq/internal/service"
 )
 
 func main() {
@@ -30,15 +32,23 @@ func main() {
 		log.Fatalf("migrations: %v", err)
 	}
 
+	userRepo := repository.NewUserRepo(database)
+	problemRepo := repository.NewProblemRepo(database)
+	categoryRepo := repository.NewCategoryRepo(database)
+
+	authSvc := service.NewAuthService(userRepo)
+	problemSvc := service.NewProblemService(problemRepo)
+	categorySvc := service.NewCategoryService(categoryRepo)
+
+	authHandler := &handlers.AuthHandler{Service: authSvc}
+	problemHandler := &handlers.ProblemHandler{Service: problemSvc}
+	categoryHandler := &handlers.CategoryHandler{Service: categorySvc}
+
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
-
-	authHandler := &handlers.AuthHandler{DB: database}
-	problemHandler := &handlers.ProblemHandler{DB: database}
-	categoryHandler := &handlers.CategoryHandler{DB: database}
 
 	r.Get("/health", healthHandler)
 

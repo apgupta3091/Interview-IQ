@@ -1,18 +1,18 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/apgupta3091/interview-iq/internal/middleware"
 	"github.com/apgupta3091/interview-iq/internal/models"
+	"github.com/apgupta3091/interview-iq/internal/service"
 )
 
 type ProblemHandler struct {
-	DB *sql.DB
+	Service service.ProblemService
 }
 
 type logProblemRequest struct {
@@ -38,54 +38,36 @@ type problemResponse struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
-var validDifficulties = map[string]bool{
-	"easy": true, "medium": true, "hard": true,
-}
-
-var validCategories = map[string]bool{
-	"array": true, "string": true, "hash-map": true, "two-pointers": true,
-	"sliding-window": true, "binary-search": true, "stack": true, "queue": true,
-	"linked-list": true, "tree": true, "graph": true, "heap": true,
-	"dp": true, "backtracking": true, "greedy": true, "math": true, "other": true,
+func toProblemResponse(p models.Problem) problemResponse {
+	return problemResponse{
+		ID:               p.ID,
+		Name:             p.Name,
+		Category:         p.Category,
+		Difficulty:       p.Difficulty,
+		Attempts:         p.Attempts,
+		LookedAtSolution: p.LookedAtSolution,
+		TimeTakenMins:    p.TimeTakenMins,
+		Score:            p.Score,
+		DecayedScore:     p.DecayedScore,
+		SolvedAt:         p.SolvedAt,
+		CreatedAt:        p.CreatedAt,
+	}
 }
 
 func (h *ProblemHandler) ListProblems(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 
-	rows, err := h.DB.QueryContext(r.Context(), `
-		SELECT id, name, category, difficulty, attempts, looked_at_solution,
-		       time_taken_mins, score, solved_at, created_at
-		FROM problems
-		WHERE user_id = $1
-		ORDER BY created_at DESC`,
-		userID,
-	)
+	problems, err := h.Service.List(r.Context(), userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to fetch problems")
 		return
 	}
-	defer rows.Close()
 
-	problems := []problemResponse{}
-	for rows.Next() {
-		var p problemResponse
-		if err := rows.Scan(
-			&p.ID, &p.Name, &p.Category, &p.Difficulty,
-			&p.Attempts, &p.LookedAtSolution, &p.TimeTakenMins,
-			&p.Score, &p.SolvedAt, &p.CreatedAt,
-		); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to read problems")
-			return
-		}
-		p.DecayedScore = models.ApplyDecay(p.Score, p.SolvedAt)
-		problems = append(problems, p)
+	resp := make([]problemResponse, len(problems))
+	for i, p := range problems {
+		resp[i] = toProblemResponse(p)
 	}
-	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "error iterating problems")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, problems)
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
@@ -97,49 +79,23 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Name = strings.TrimSpace(req.Name)
-	req.Category = strings.ToLower(strings.TrimSpace(req.Category))
-	req.Difficulty = strings.ToLower(strings.TrimSpace(req.Difficulty))
-
-	if req.Name == "" {
-		writeError(w, http.StatusBadRequest, "name is required")
-		return
-	}
-	if !validCategories[req.Category] {
-		writeError(w, http.StatusBadRequest, "invalid category")
-		return
-	}
-	if !validDifficulties[req.Difficulty] {
-		writeError(w, http.StatusBadRequest, "difficulty must be easy, medium, or hard")
-		return
-	}
-	if req.Attempts < 1 {
-		req.Attempts = 1
-	}
-
-	score := models.ComputeScore(req.Attempts, req.LookedAtSolution)
-	solvedAt := time.Now()
-
-	var p problemResponse
-	err := h.DB.QueryRowContext(r.Context(), `
-		INSERT INTO problems
-			(user_id, name, category, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at)
-		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, name, category, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at, created_at`,
-		userID, req.Name, req.Category, req.Difficulty,
-		req.Attempts, req.LookedAtSolution, req.TimeTakenMins,
-		score, solvedAt,
-	).Scan(
-		&p.ID, &p.Name, &p.Category, &p.Difficulty,
-		&p.Attempts, &p.LookedAtSolution, &p.TimeTakenMins,
-		&p.Score, &p.SolvedAt, &p.CreatedAt,
-	)
+	p, err := h.Service.Log(r.Context(), userID, service.LogProblemInput{
+		Name:             req.Name,
+		Category:         req.Category,
+		Difficulty:       req.Difficulty,
+		Attempts:         req.Attempts,
+		LookedAtSolution: req.LookedAtSolution,
+		TimeTakenMins:    req.TimeTakenMins,
+	})
 	if err != nil {
+		var ve service.ValidationError
+		if errors.As(err, &ve) {
+			writeError(w, http.StatusBadRequest, ve.Message)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to log problem")
 		return
 	}
 
-	p.DecayedScore = models.ApplyDecay(p.Score, p.SolvedAt)
-	writeJSON(w, http.StatusCreated, p)
+	writeJSON(w, http.StatusCreated, toProblemResponse(p))
 }
