@@ -7,10 +7,11 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/apgupta3091/interview-iq/internal/db"
 	"github.com/apgupta3091/interview-iq/internal/handlers"
+	"github.com/apgupta3091/interview-iq/internal/middleware"
 )
 
 func main() {
@@ -31,17 +32,24 @@ func main() {
 
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.RequestID)
 
 	authHandler := &handlers.AuthHandler{DB: database}
 
 	r.Get("/health", healthHandler)
 
 	r.Route("/api", func(r chi.Router) {
+		// public routes — no auth required
 		r.Post("/auth/register", authHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
+
+		// protected routes — JWT required
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Authenticate)
+			// problem and category routes will be added here in steps 7-10
+		})
 	})
 
 	log.Printf("server starting on :%s", port)
