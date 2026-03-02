@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/apgupta3091/interview-iq/internal/db"
+	"github.com/apgupta3091/interview-iq/internal/handlers"
 )
 
 func main() {
@@ -34,7 +35,14 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 
+	authHandler := &handlers.AuthHandler{DB: database}
+
 	r.Get("/health", healthHandler)
+
+	r.Route("/api", func(r chi.Router) {
+		r.Post("/auth/register", authHandler.Register)
+		r.Post("/auth/login", authHandler.Login)
+	})
 
 	log.Printf("server starting on :%s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
