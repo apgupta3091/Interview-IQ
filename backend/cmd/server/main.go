@@ -49,6 +49,7 @@ func main() {
 		// protected routes — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Authenticate)
+			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
 		})
 	})

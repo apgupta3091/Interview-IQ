@@ -49,6 +49,45 @@ var validCategories = map[string]bool{
 	"dp": true, "backtracking": true, "greedy": true, "math": true, "other": true,
 }
 
+func (h *ProblemHandler) ListProblems(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserIDFromContext(r.Context())
+
+	rows, err := h.DB.QueryContext(r.Context(), `
+		SELECT id, name, category, difficulty, attempts, looked_at_solution,
+		       time_taken_mins, score, solved_at, created_at
+		FROM problems
+		WHERE user_id = $1
+		ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch problems")
+		return
+	}
+	defer rows.Close()
+
+	problems := []problemResponse{}
+	for rows.Next() {
+		var p problemResponse
+		if err := rows.Scan(
+			&p.ID, &p.Name, &p.Category, &p.Difficulty,
+			&p.Attempts, &p.LookedAtSolution, &p.TimeTakenMins,
+			&p.Score, &p.SolvedAt, &p.CreatedAt,
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to read problems")
+			return
+		}
+		p.DecayedScore = models.ApplyDecay(p.Score, p.SolvedAt)
+		problems = append(problems, p)
+	}
+	if err := rows.Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, "error iterating problems")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, problems)
+}
+
 func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 
