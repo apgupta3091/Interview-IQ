@@ -8,12 +8,24 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/apgupta3091/interview-iq/internal/db"
 )
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
+	}
+
+	database, err := db.Connect()
+	if err != nil {
+		log.Fatalf("db connect: %v", err)
+	}
+	defer database.Close()
+
+	if err := db.RunMigrations(database, "migrations"); err != nil {
+		log.Fatalf("migrations: %v", err)
 	}
 
 	r := chi.NewRouter()
