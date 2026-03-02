@@ -1,0 +1,427 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Backend API for tracking LeetCode problem attempts, computing skill scores with time decay, and surfacing category weaknesses.",
+        "title": "Interview Skill Radar API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "description": "Authenticates a user and returns a JWT token valid for 7 days.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login with existing credentials",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.authRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "JWT token and email",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.authResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid email or password",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Creates a new user account with email and password. Returns a JWT token on success.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "Registration credentials (password min 8 chars)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.authRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "JWT token and email",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.authResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input or password too short",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Email already registered",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the average decayed score per category for the authenticated user. Strength is a 0–100 value representing current mastery. Categories with no problems are omitted.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Get category strength scores",
+                "responses": {
+                    "200": {
+                        "description": "Per-category strength scores",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.categoryStatsResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/weakest": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Identifies the category with the lowest average decayed score and returns 3 curated LeetCode problems to practice. Used to drive the dashboard weakness banner.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Get weakest category with recommendations",
+                "responses": {
+                    "200": {
+                        "description": "Weakest category with 3 recommended problems",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.weakestResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No problems logged yet",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/problems": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all problems logged by the authenticated user, ordered newest first. Each problem includes its raw score and live decayed score computed at request time.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "problems"
+                ],
+                "summary": "List all logged problems",
+                "responses": {
+                    "200": {
+                        "description": "List of problems with decayed scores",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.problemResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Records a LeetCode problem attempt and computes a score. Score formula: base 100, -10 per extra attempt (capped -40), -25 if solution viewed, floor 5. Decay applies at read time: 3-day grace period, then -2pts/day, floor at 30% of raw score.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "problems"
+                ],
+                "summary": "Log a new problem attempt",
+                "parameters": [
+                    {
+                        "description": "Problem attempt details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.logProblemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created problem with computed score",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.problemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input — bad category, difficulty, or missing name",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.errorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.authRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.authResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.categoryStatsResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "problem_count": {
+                    "type": "integer"
+                },
+                "strength": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.errorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.logProblemRequest": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "difficulty": {
+                    "type": "string"
+                },
+                "looked_at_solution": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "time_taken_mins": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.problemResponse": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "decayed_score": {
+                    "type": "number"
+                },
+                "difficulty": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "looked_at_solution": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "solved_at": {
+                    "type": "string"
+                },
+                "time_taken_mins": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.weakestResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "recommendations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "strength": {
+                    "type": "number"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Enter your JWT token as: Bearer \u003ctoken\u003e",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

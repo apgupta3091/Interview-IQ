@@ -1,3 +1,12 @@
+// @title           Interview Skill Radar API
+// @version         1.0
+// @description     Backend API for tracking LeetCode problem attempts, computing skill scores with time decay, and surfacing category weaknesses.
+// @host            localhost:8080
+// @BasePath        /api
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter your JWT token as: Bearer <token>
 package main
 
 import (
@@ -8,7 +17,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 
+	_ "github.com/apgupta3091/interview-iq/docs"
 	"github.com/apgupta3091/interview-iq/internal/db"
 	"github.com/apgupta3091/interview-iq/internal/handlers"
 	"github.com/apgupta3091/interview-iq/internal/middleware"
@@ -51,6 +62,7 @@ func main() {
 	r.Use(chimiddleware.RequestID)
 
 	r.Get("/health", healthHandler)
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	r.Route("/api", func(r chi.Router) {
 		// public routes — no auth required

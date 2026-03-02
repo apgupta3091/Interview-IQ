@@ -1,0 +1,286 @@
+basePath: /api
+definitions:
+  handlers.authRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  handlers.authResponse:
+    properties:
+      email:
+        type: string
+      token:
+        type: string
+    type: object
+  handlers.categoryStatsResponse:
+    properties:
+      category:
+        type: string
+      problem_count:
+        type: integer
+      strength:
+        type: number
+    type: object
+  handlers.errorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handlers.logProblemRequest:
+    properties:
+      attempts:
+        type: integer
+      category:
+        type: string
+      difficulty:
+        type: string
+      looked_at_solution:
+        type: boolean
+      name:
+        type: string
+      time_taken_mins:
+        type: integer
+    type: object
+  handlers.problemResponse:
+    properties:
+      attempts:
+        type: integer
+      category:
+        type: string
+      created_at:
+        type: string
+      decayed_score:
+        type: number
+      difficulty:
+        type: string
+      id:
+        type: integer
+      looked_at_solution:
+        type: boolean
+      name:
+        type: string
+      score:
+        type: integer
+      solved_at:
+        type: string
+      time_taken_mins:
+        type: integer
+    type: object
+  handlers.weakestResponse:
+    properties:
+      category:
+        type: string
+      recommendations:
+        items:
+          type: string
+        type: array
+      strength:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Backend API for tracking LeetCode problem attempts, computing skill
+    scores with time decay, and surfacing category weaknesses.
+  title: Interview Skill Radar API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token valid for 7 days.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token and email
+          schema:
+            $ref: '#/definitions/handlers.authResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Invalid email or password
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      summary: Login with existing credentials
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account with email and password. Returns a JWT
+        token on success.
+      parameters:
+      - description: Registration credentials (password min 8 chars)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.authRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: JWT token and email
+          schema:
+            $ref: '#/definitions/handlers.authResponse'
+        "400":
+          description: Invalid input or password too short
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "409":
+          description: Email already registered
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /categories/stats:
+    get:
+      description: Returns the average decayed score per category for the authenticated
+        user. Strength is a 0–100 value representing current mastery. Categories with
+        no problems are omitted.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Per-category strength scores
+          schema:
+            items:
+              $ref: '#/definitions/handlers.categoryStatsResponse'
+            type: array
+        "401":
+          description: Missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get category strength scores
+      tags:
+      - categories
+  /categories/weakest:
+    get:
+      description: Identifies the category with the lowest average decayed score and
+        returns 3 curated LeetCode problems to practice. Used to drive the dashboard
+        weakness banner.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Weakest category with 3 recommended problems
+          schema:
+            $ref: '#/definitions/handlers.weakestResponse'
+        "401":
+          description: Missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: No problems logged yet
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get weakest category with recommendations
+      tags:
+      - categories
+  /problems:
+    get:
+      description: Returns all problems logged by the authenticated user, ordered
+        newest first. Each problem includes its raw score and live decayed score computed
+        at request time.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of problems with decayed scores
+          schema:
+            items:
+              $ref: '#/definitions/handlers.problemResponse'
+            type: array
+        "401":
+          description: Missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all logged problems
+      tags:
+      - problems
+    post:
+      consumes:
+      - application/json
+      description: 'Records a LeetCode problem attempt and computes a score. Score
+        formula: base 100, -10 per extra attempt (capped -40), -25 if solution viewed,
+        floor 5. Decay applies at read time: 3-day grace period, then -2pts/day, floor
+        at 30% of raw score.'
+      parameters:
+      - description: Problem attempt details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.logProblemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created problem with computed score
+          schema:
+            $ref: '#/definitions/handlers.problemResponse'
+        "400":
+          description: Invalid input — bad category, difficulty, or missing name
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Log a new problem attempt
+      tags:
+      - problems
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your JWT token as: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

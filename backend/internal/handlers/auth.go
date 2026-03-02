@@ -22,6 +22,18 @@ type authResponse struct {
 	Email string `json:"email"`
 }
 
+// Register godoc
+// @Summary      Register a new user
+// @Description  Creates a new user account with email and password. Returns a JWT token on success.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      authRequest   true  "Registration credentials (password min 8 chars)"
+// @Success      201   {object}  authResponse  "JWT token and email"
+// @Failure      400   {object}  errorResponse "Invalid input or password too short"
+// @Failure      409   {object}  errorResponse "Email already registered"
+// @Failure      500   {object}  errorResponse "Internal server error"
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req authRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -47,6 +59,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, authResponse{Token: token, Email: email})
 }
 
+// Login godoc
+// @Summary      Login with existing credentials
+// @Description  Authenticates a user and returns a JWT token valid for 7 days.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      authRequest   true  "Login credentials"
+// @Success      200   {object}  authResponse  "JWT token and email"
+// @Failure      400   {object}  errorResponse "Invalid request body"
+// @Failure      401   {object}  errorResponse "Invalid email or password"
+// @Failure      500   {object}  errorResponse "Internal server error"
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req authRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

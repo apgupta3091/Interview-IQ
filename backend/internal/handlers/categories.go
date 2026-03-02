@@ -24,6 +24,16 @@ type weakestResponse struct {
 	Recommendations []string `json:"recommendations"`
 }
 
+// GetStats godoc
+// @Summary      Get category strength scores
+// @Description  Returns the average decayed score per category for the authenticated user. Strength is a 0–100 value representing current mastery. Categories with no problems are omitted.
+// @Tags         categories
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {array}   categoryStatsResponse "Per-category strength scores"
+// @Failure      401  {object}  errorResponse         "Missing or invalid JWT token"
+// @Failure      500  {object}  errorResponse         "Internal server error"
+// @Router       /categories/stats [get]
 func (h *CategoryHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 
@@ -44,6 +54,17 @@ func (h *CategoryHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// GetWeakest godoc
+// @Summary      Get weakest category with recommendations
+// @Description  Identifies the category with the lowest average decayed score and returns 3 curated LeetCode problems to practice. Used to drive the dashboard weakness banner.
+// @Tags         categories
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  weakestResponse "Weakest category with 3 recommended problems"
+// @Failure      401  {object}  errorResponse   "Missing or invalid JWT token"
+// @Failure      404  {object}  errorResponse   "No problems logged yet"
+// @Failure      500  {object}  errorResponse   "Internal server error"
+// @Router       /categories/weakest [get]
 func (h *CategoryHandler) GetWeakest(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 
