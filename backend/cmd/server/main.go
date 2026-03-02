@@ -36,7 +36,8 @@ func main() {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
 
-	authHandler := &handlers.AuthHandler{DB: database}
+	authHandler    := &handlers.AuthHandler{DB: database}
+	problemHandler := &handlers.ProblemHandler{DB: database}
 
 	r.Get("/health", healthHandler)
 
@@ -48,7 +49,7 @@ func main() {
 		// protected routes — JWT required
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Authenticate)
-			// problem and category routes will be added here in steps 7-10
+			r.Post("/problems", problemHandler.LogProblem)
 		})
 	})
 
