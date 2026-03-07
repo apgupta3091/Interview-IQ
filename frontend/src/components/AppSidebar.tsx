@@ -1,6 +1,7 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { LayoutDashboard, ListChecks, PlusCircle, LogOut, Sun, Moon, Code2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { useUser, useClerk } from '@clerk/react'
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +13,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
@@ -22,14 +22,11 @@ const NAV_ITEMS = [
 
 export default function AppSidebar() {
   const { pathname } = useLocation()
-  const { logout, email } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useUser()
+  const { signOut } = useClerk()
   const { theme, setTheme } = useTheme()
 
-  function handleLogout() {
-    logout()
-    navigate('/login', { replace: true })
-  }
+  const email = user?.primaryEmailAddress?.emailAddress
 
   return (
     <Sidebar>
@@ -73,7 +70,10 @@ export default function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
+            <SidebarMenuButton
+              onClick={() => signOut({ redirectUrl: '/' })}
+              className="text-muted-foreground hover:text-foreground"
+            >
               <LogOut className="w-4 h-4" />
               <span>Sign out</span>
             </SidebarMenuButton>

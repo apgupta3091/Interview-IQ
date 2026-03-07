@@ -6,7 +6,7 @@
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-// @description Enter your JWT token as: Bearer <token>
+// @description Enter your Clerk session token as: Bearer <token>
 package main
 
 import (
@@ -18,7 +18,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
+
+	clerk "github.com/clerk/clerk-sdk-go/v2"
 
 	_ "github.com/apgupta3091/interview-iq/docs"
 	"github.com/apgupta3091/interview-iq/internal/db"
@@ -29,10 +32,16 @@ import (
 )
 
 func main() {
+	// Load .env if present (dev convenience; ignored if the file doesn't exist).
+	_ = godotenv.Load()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
+	// Initialise Clerk SDK — must be called before any token verification.
+	clerk.SetKey(os.Getenv("CLERK_SECRET_KEY"))
 
 	database, err := db.Connect()
 	if err != nil {
@@ -49,11 +58,9 @@ func main() {
 	categoryRepo := repository.NewCategoryRepo(database)
 	lcRepo := repository.NewLeetCodeProblemRepo(database)
 
-	authSvc := service.NewAuthService(userRepo)
 	problemSvc := service.NewProblemService(problemRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 
-	authHandler := &handlers.AuthHandler{Service: authSvc}
 	problemHandler := &handlers.ProblemHandler{Service: problemSvc}
 	categoryHandler := &handlers.CategoryHandler{Service: categorySvc}
 	lcHandler := &handlers.LeetCodeHandler{Repo: lcRepo}
@@ -75,13 +82,9 @@ func main() {
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	r.Route("/api", func(r chi.Router) {
-		// public routes — no auth required
-		r.Post("/auth/register", authHandler.Register)
-		r.Post("/auth/login", authHandler.Login)
-
-		// protected routes — JWT required
+		// All API routes require a valid Clerk JWT.
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.Authenticate)
+			r.Use(middleware.ClerkAuthenticate(userRepo))
 			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
 			r.Get("/categories/stats", categoryHandler.GetStats)

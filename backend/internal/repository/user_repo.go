@@ -4,12 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 )
 
 type UserRepository interface {
 	Create(ctx context.Context, email, passwordHash string) (int, error)
 	GetByEmail(ctx context.Context, email string) (userID int, passwordHash string, err error)
+	// GetOrCreateByClerkID returns the internal integer user ID for a Clerk user,
+	// creating a new row on first sign-in (upsert).
+	GetOrCreateByClerkID(ctx context.Context, clerkUserID string) (int, error)
 }
 
 type sqlUserRepo struct {
@@ -49,4 +53,21 @@ func (r *sqlUserRepo) GetByEmail(ctx context.Context, email string) (int, string
 		return 0, "", err
 	}
 	return id, hash, nil
+}
+
+// GetOrCreateByClerkID upserts a user row keyed by clerk_user_id and returns
+// the internal integer id in a single round-trip.
+func (r *sqlUserRepo) GetOrCreateByClerkID(ctx context.Context, clerkUserID string) (int, error) {
+	var id int
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO users (clerk_user_id)
+		 VALUES ($1)
+		 ON CONFLICT (clerk_user_id) DO UPDATE SET clerk_user_id = EXCLUDED.clerk_user_id
+		 RETURNING id`,
+		clerkUserID,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("user_repo.GetOrCreateByClerkID: %w", err)
+	}
+	return id, nil
 }
