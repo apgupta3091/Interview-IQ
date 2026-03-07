@@ -1,5 +1,5 @@
 # compiled binaries
-server
+/server
 *.exe
 
 # environment files
