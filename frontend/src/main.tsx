@@ -8,10 +8,8 @@ import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import LogProblem from '@/pages/LogProblem'
 import ProblemList from '@/pages/ProblemList'
+import Dashboard from '@/pages/Dashboard'
 import './index.css'
-
-// Placeholder page — replaced in subsequent steps
-function Dashboard() { return <div className="p-8 text-lg font-semibold">Dashboard</div> }
 
 // Wraps authenticated pages: checks auth, renders navbar + page content.
 function AppLayout() {
