@@ -12,8 +12,10 @@ import (
 var validCategories = map[string]bool{
 	"array": true, "string": true, "hash-map": true, "two-pointers": true,
 	"sliding-window": true, "binary-search": true, "stack": true, "queue": true,
-	"linked-list": true, "tree": true, "graph": true, "heap": true,
-	"dp": true, "backtracking": true, "greedy": true, "math": true, "other": true,
+	"linked-list": true, "tree": true, "trie": true, "graph": true,
+	"advanced-graphs": true, "heap": true, "dp": true, "dp-2d": true,
+	"backtracking": true, "greedy": true, "intervals": true,
+	"math": true, "bit-manipulation": true, "other": true,
 }
 
 var validDifficulties = map[string]bool{

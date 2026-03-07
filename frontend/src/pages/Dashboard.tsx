@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
 import { AlertTriangle, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import SkillRadar from '@/components/SkillRadar'
+import CategoryBarChart from '@/components/CategoryBarChart'
+import CategoryRadarChart from '@/components/CategoryRadarChart'
 import { api } from '@/lib/api'
 import type { CategoryStats, WeakestResult, ApiError } from '@/types/api'
 
@@ -12,29 +13,6 @@ function strengthColor(s: number) {
   if (s >= 70) return 'text-emerald-500'
   if (s >= 40) return 'text-amber-500'
   return 'text-red-500'
-}
-
-function strengthBg(s: number) {
-  if (s >= 70) return 'bg-emerald-500'
-  if (s >= 40) return 'bg-amber-500'
-  return 'bg-red-500'
-}
-
-function StrengthBar({ value }: { value: number }) {
-  const [width, setWidth] = useState(0)
-  useEffect(() => {
-    const t = setTimeout(() => setWidth(Math.min(value, 100)), 50)
-    return () => clearTimeout(t)
-  }, [value])
-
-  return (
-    <div className="w-full bg-muted rounded-full h-1.5 mt-2 overflow-hidden">
-      <div
-        className={`h-1.5 rounded-full transition-all duration-700 ease-out ${strengthBg(value)}`}
-        style={{ width: `${width}%` }}
-      />
-    </div>
-  )
 }
 
 export default function Dashboard() {
@@ -117,41 +95,33 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Radar chart */}
-      <Card className="border-border/60">
-        <CardHeader className="pb-0">
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            Skill Radar
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-2">
-          <SkillRadar stats={stats} />
-        </CardContent>
-      </Card>
+      {/* Two-column charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      {/* Category grid */}
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-          Category Breakdown
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {stats.map((s) => (
-            <Card key={s.category} className="border-border/60 hover:border-border transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium truncate pr-2">{s.category}</span>
-                  <span className={`text-sm font-bold tabular-nums shrink-0 ${strengthColor(s.strength ?? 0)}`}>
-                    {Math.round(s.strength ?? 0)}%
-                  </span>
-                </div>
-                <StrengthBar value={s.strength ?? 0} />
-                <p className="text-xs text-muted-foreground mt-2">
-                  {s.problem_count} {s.problem_count === 1 ? 'problem' : 'problems'}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Radar — shape at a glance */}
+        <Card className="border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Skill Radar
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryRadarChart stats={stats} />
+          </CardContent>
+        </Card>
+
+        {/* Bar chart — precise values */}
+        <Card className="border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Category Strength
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryBarChart stats={stats} />
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   )

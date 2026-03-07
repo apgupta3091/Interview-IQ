@@ -2,19 +2,24 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { ApiError } from '@/types/api'
 
 const CATEGORIES = [
   'array', 'string', 'hash-map', 'two-pointers', 'sliding-window',
-  'binary-search', 'stack', 'queue', 'linked-list', 'tree', 'graph',
-  'heap', 'dp', 'backtracking', 'greedy', 'math', 'other',
+  'binary-search', 'stack', 'linked-list', 'tree', 'trie', 'heap',
+  'graph', 'advanced-graphs', 'dp', 'dp-2d', 'backtracking',
+  'greedy', 'intervals', 'math', 'bit-manipulation', 'queue', 'other',
 ]
 
 const DIFFICULTIES = [
@@ -23,15 +28,44 @@ const DIFFICULTIES = [
   { value: 'hard',   label: 'Hard',   color: 'text-red-500' },
 ]
 
+function NumberInput({
+  id, label, value, onChange, min = 1,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  min?: number
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        min={min}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => {
+          const n = parseInt(e.target.value)
+          onChange(isNaN(n) || n < min ? String(min) : String(n))
+        }}
+      />
+    </div>
+  )
+}
+
 export default function LogProblem() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [difficulty, setDifficulty] = useState('')
-  const [attempts, setAttempts] = useState(1)
+  const [attempts, setAttempts] = useState('1')
   const [lookedAtSolution, setLookedAtSolution] = useState(false)
-  const [timeTaken, setTimeTaken] = useState(15)
+  const [timeTaken, setTimeTaken] = useState('15')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -39,7 +73,14 @@ export default function LogProblem() {
     if (!difficulty) { toast.error('Please select a difficulty'); return }
     setLoading(true)
     try {
-      await api.problems.log({ name, category, difficulty, attempts, looked_at_solution: lookedAtSolution, time_taken_mins: timeTaken })
+      await api.problems.log({
+        name,
+        category,
+        difficulty,
+        attempts: parseInt(attempts) || 1,
+        looked_at_solution: lookedAtSolution,
+        time_taken_mins: parseInt(timeTaken) || 1,
+      })
       toast.success('Problem logged!')
       navigate('/problems')
     } catch (err) {
@@ -64,6 +105,8 @@ export default function LogProblem() {
       <Card className="border-border/60 shadow-sm">
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-5 pt-6">
+
+            {/* Problem name */}
             <div className="space-y-1.5">
               <Label htmlFor="name">Problem name</Label>
               <Input
@@ -75,61 +118,71 @@ export default function LogProblem() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Category</Label>
-                <Select onValueChange={setCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Difficulty</Label>
-                <Select onValueChange={setDifficulty}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DIFFICULTIES.map((d) => (
-                      <SelectItem key={d.value} value={d.value}>
-                        <span className={d.color}>{d.label}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Category combobox */}
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={categoryOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {category || 'Select a category…'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search categories…" />
+                    <CommandList style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                      <CommandEmpty>No category found.</CommandEmpty>
+                      <CommandGroup>
+                        {CATEGORIES.map((c) => (
+                          <CommandItem
+                            key={c}
+                            value={c}
+                            onSelect={(val) => {
+                              setCategory(val)
+                              setCategoryOpen(false)
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', category === c ? 'opacity-100' : 'opacity-0')} />
+                            {c}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="attempts">Attempts</Label>
-                <Input
-                  id="attempts"
-                  type="number"
-                  min={1}
-                  value={attempts}
-                  onChange={(e) => setAttempts(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="time">Time (minutes)</Label>
-                <Input
-                  id="time"
-                  type="number"
-                  min={1}
-                  value={timeTaken}
-                  onChange={(e) => setTimeTaken(Number(e.target.value))}
-                />
-              </div>
+            {/* Difficulty */}
+            <div className="space-y-1.5">
+              <Label>Difficulty</Label>
+              <Select onValueChange={setDifficulty}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DIFFICULTIES.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>
+                      <span className={d.color}>{d.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
+            {/* Attempts + Time */}
+            <div className="grid grid-cols-2 gap-4">
+              <NumberInput id="attempts" label="Attempts" value={attempts} onChange={setAttempts} min={1} />
+              <NumberInput id="time" label="Time (minutes)" value={timeTaken} onChange={setTimeTaken} min={1} />
+            </div>
+
+            {/* Looked at solution */}
             <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
               <Checkbox
                 id="looked"
@@ -138,11 +191,11 @@ export default function LogProblem() {
               />
               <div>
                 <Label htmlFor="looked" className="cursor-pointer text-sm font-medium">Looked at the solution</Label>
-                <p className="text-xs text-muted-foreground">This will reduce your score by 25 points</p>
+                <p className="text-xs text-muted-foreground">Reduces your score by 25 points</p>
               </div>
             </div>
-          </CardContent>
 
+          </CardContent>
           <CardFooter className="pt-2">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging…' : 'Log problem'}
