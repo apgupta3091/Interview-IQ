@@ -23,9 +23,10 @@ var validDifficulties = map[string]bool{
 }
 
 type LogProblemInput struct {
-	Name, Category, Difficulty string
-	Attempts, TimeTakenMins    int
-	LookedAtSolution           bool
+	Name, Difficulty        string
+	Categories              []string
+	Attempts, TimeTakenMins int
+	LookedAtSolution        bool
 }
 
 type ProblemService interface {
@@ -43,14 +44,20 @@ func NewProblemService(problems repository.ProblemRepository) ProblemService {
 
 func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInput) (models.Problem, error) {
 	req.Name = strings.TrimSpace(req.Name)
-	req.Category = strings.ToLower(strings.TrimSpace(req.Category))
 	req.Difficulty = strings.ToLower(strings.TrimSpace(req.Difficulty))
 
 	if req.Name == "" {
 		return models.Problem{}, ValidationError{Message: "name is required"}
 	}
-	if !validCategories[req.Category] {
-		return models.Problem{}, ValidationError{Message: "invalid category"}
+	if len(req.Categories) == 0 {
+		return models.Problem{}, ValidationError{Message: "at least one category is required"}
+	}
+	// Normalise and validate every category in the list.
+	for i, c := range req.Categories {
+		req.Categories[i] = strings.ToLower(strings.TrimSpace(c))
+		if !validCategories[req.Categories[i]] {
+			return models.Problem{}, ValidationError{Message: "invalid category: " + req.Categories[i]}
+		}
 	}
 	if !validDifficulties[req.Difficulty] {
 		return models.Problem{}, ValidationError{Message: "difficulty must be easy, medium, or hard"}
@@ -65,7 +72,7 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 	p, err := s.problems.Insert(ctx, repository.InsertProblemParams{
 		UserID:           userID,
 		Name:             req.Name,
-		Category:         req.Category,
+		Categories:       req.Categories,
 		Difficulty:       req.Difficulty,
 		Attempts:         req.Attempts,
 		TimeTakenMins:    req.TimeTakenMins,

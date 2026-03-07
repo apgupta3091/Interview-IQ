@@ -99,9 +99,13 @@ export default function ProblemList() {
                 <TableRow key={p.id} className="hover:bg-muted/20 transition-colors">
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell>
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-md text-muted-foreground">
-                      {p.category}
-                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {(p.categories ?? []).map((cat) => (
+                        <span key={cat} className="text-xs bg-muted px-2 py-0.5 rounded-md text-muted-foreground">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${DIFFICULTY_STYLES[p.difficulty ?? ''] ?? ''}`}>

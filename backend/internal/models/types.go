@@ -4,10 +4,23 @@ import "time"
 
 type Problem struct {
 	ID, UserID, Score, Attempts, TimeTakenMins int
-	Name, Category, Difficulty                 string
+	Name, Difficulty                           string
+	Categories                                 []string
 	LookedAtSolution                           bool
 	DecayedScore                               float64
 	SolvedAt, CreatedAt                        time.Time
+}
+
+// LeetCodeProblem is a row from the leetcode_problems catalog table.
+type LeetCodeProblem struct {
+	ID, LcID int
+	Title    string
+	Slug     string
+	// Difficulty is one of "easy", "medium", "hard" (lowercased at insert time).
+	Difficulty string
+	// Tags holds our mapped category slugs (e.g. "array", "hash-map").
+	Tags     []string
+	PaidOnly bool
 }
 
 type CategoryRawScore struct {

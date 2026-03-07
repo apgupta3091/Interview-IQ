@@ -16,18 +16,18 @@ type ProblemHandler struct {
 }
 
 type logProblemRequest struct {
-	Name             string `json:"name"`
-	Category         string `json:"category"`
-	Difficulty       string `json:"difficulty"`
-	Attempts         int    `json:"attempts"`
-	LookedAtSolution bool   `json:"looked_at_solution"`
-	TimeTakenMins    int    `json:"time_taken_mins"`
+	Name             string   `json:"name"`
+	Categories       []string `json:"categories"`
+	Difficulty       string   `json:"difficulty"`
+	Attempts         int      `json:"attempts"`
+	LookedAtSolution bool     `json:"looked_at_solution"`
+	TimeTakenMins    int      `json:"time_taken_mins"`
 }
 
 type problemResponse struct {
 	ID               int       `json:"id"`
 	Name             string    `json:"name"`
-	Category         string    `json:"category"`
+	Categories       []string  `json:"categories"`
 	Difficulty       string    `json:"difficulty"`
 	Attempts         int       `json:"attempts"`
 	LookedAtSolution bool      `json:"looked_at_solution"`
@@ -39,10 +39,14 @@ type problemResponse struct {
 }
 
 func toProblemResponse(p models.Problem) problemResponse {
+	categories := p.Categories
+	if categories == nil {
+		categories = []string{}
+	}
 	return problemResponse{
 		ID:               p.ID,
 		Name:             p.Name,
-		Category:         p.Category,
+		Categories:       categories,
 		Difficulty:       p.Difficulty,
 		Attempts:         p.Attempts,
 		LookedAtSolution: p.LookedAtSolution,
@@ -104,7 +108,7 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 
 	p, err := h.Service.Log(r.Context(), userID, service.LogProblemInput{
 		Name:             req.Name,
-		Category:         req.Category,
+		Categories:       req.Categories,
 		Difficulty:       req.Difficulty,
 		Attempts:         req.Attempts,
 		LookedAtSolution: req.LookedAtSolution,

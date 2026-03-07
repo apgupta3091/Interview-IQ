@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
-import type { ApiError } from '@/types/api'
+import type { ApiError, LeetCodeProblemSuggestion } from '@/types/api'
 
 const CATEGORIES = [
   'array', 'string', 'hash-map', 'two-pointers', 'sliding-window',
@@ -59,23 +60,75 @@ export default function LogProblem() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
 
+  // Problem name + typeahead
   const [name, setName] = useState('')
-  const [category, setCategory] = useState('')
-  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [suggestions, setSuggestions] = useState<LeetCodeProblemSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Form fields
   const [difficulty, setDifficulty] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [attempts, setAttempts] = useState('1')
   const [lookedAtSolution, setLookedAtSolution] = useState(false)
   const [timeTaken, setTimeTaken] = useState('15')
 
+  // Debounced search as user types in the name field
+  const handleNameChange = useCallback((value: string) => {
+    setName(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (value.trim().length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await api.leetcodeProblems.search(value.trim())
+        setSuggestions(results ?? [])
+        setShowSuggestions(true)
+      } catch {
+        // silently ignore search errors — user can still type freely
+      }
+    }, 300)
+  }, [])
+
+  // When a suggestion is selected, auto-fill name, difficulty, and categories
+  function selectSuggestion(s: LeetCodeProblemSuggestion) {
+    setName(s.title ?? '')
+    if (s.difficulty) setDifficulty(s.difficulty)
+    if (s.tags && s.tags.length > 0) {
+      // Only pre-select tags that are in our known category list
+      const valid = s.tags.filter((t) => CATEGORIES.includes(t))
+      if (valid.length > 0) setSelectedCategories(valid)
+    }
+    setShowSuggestions(false)
+    setSuggestions([])
+  }
+
+  // Close suggestion dropdown on outside click
+  useEffect(() => {
+    function onBlur() { setShowSuggestions(false) }
+    document.addEventListener('mousedown', onBlur)
+    return () => document.removeEventListener('mousedown', onBlur)
+  }, [])
+
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+    )
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!category) { toast.error('Please select a category'); return }
+    if (selectedCategories.length === 0) { toast.error('Please select at least one category'); return }
     if (!difficulty) { toast.error('Please select a difficulty'); return }
     setLoading(true)
     try {
       await api.problems.log({
         name,
-        category,
+        categories: selectedCategories,
         difficulty,
         attempts: parseInt(attempts) || 1,
         looked_at_solution: lookedAtSolution,
@@ -106,21 +159,64 @@ export default function LogProblem() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-5 pt-6">
 
-            {/* Problem name */}
-            <div className="space-y-1.5">
+            {/* Problem name with typeahead */}
+            <div className="space-y-1.5 relative">
               <Label htmlFor="name">Problem name</Label>
               <Input
                 id="name"
                 placeholder="e.g. Two Sum"
                 required
+                autoComplete="off"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               />
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  className="absolute z-50 w-full top-full mt-1 rounded-md border border-border bg-popover shadow-md overflow-hidden"
+                  onMouseDown={(e) => e.preventDefault()} // prevent blur on click
+                >
+                  <ul className="max-h-52 overflow-y-auto py-1">
+                    {suggestions.map((s) => (
+                      <li
+                        key={s.lc_id}
+                        className="flex items-center justify-between px-3 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                        onClick={() => selectSuggestion(s)}
+                      >
+                        <span className="truncate">{s.title}</span>
+                        <span className={cn(
+                          'ml-2 shrink-0 text-xs font-medium',
+                          s.difficulty === 'easy' && 'text-emerald-500',
+                          s.difficulty === 'medium' && 'text-amber-500',
+                          s.difficulty === 'hard' && 'text-red-500',
+                        )}>
+                          {s.difficulty}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
-            {/* Category combobox */}
+            {/* Multi-select categories */}
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label>Categories</Label>
+              {selectedCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedCategories.map((cat) => (
+                    <Badge
+                      key={cat}
+                      variant="secondary"
+                      className="gap-1 pl-2 pr-1 text-xs cursor-pointer"
+                      onClick={() => toggleCategory(cat)}
+                    >
+                      {cat}
+                      <X className="h-3 w-3" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
               <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -129,7 +225,9 @@ export default function LogProblem() {
                     aria-expanded={categoryOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {category || 'Select a category…'}
+                    {selectedCategories.length === 0
+                      ? 'Select categories…'
+                      : `${selectedCategories.length} selected`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -143,12 +241,9 @@ export default function LogProblem() {
                           <CommandItem
                             key={c}
                             value={c}
-                            onSelect={(val) => {
-                              setCategory(val)
-                              setCategoryOpen(false)
-                            }}
+                            onSelect={() => toggleCategory(c)}
                           >
-                            <Check className={cn('mr-2 h-4 w-4', category === c ? 'opacity-100' : 'opacity-0')} />
+                            <Check className={cn('mr-2 h-4 w-4', selectedCategories.includes(c) ? 'opacity-100' : 'opacity-0')} />
                             {c}
                           </CommandItem>
                         ))}
@@ -162,7 +257,7 @@ export default function LogProblem() {
             {/* Difficulty */}
             <div className="space-y-1.5">
               <Label>Difficulty</Label>
-              <Select onValueChange={setDifficulty}>
+              <Select value={difficulty} onValueChange={setDifficulty}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select difficulty…" />
                 </SelectTrigger>

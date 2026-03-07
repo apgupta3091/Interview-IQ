@@ -403,15 +403,22 @@ export interface components {
         };
         "handlers.logProblemRequest": {
             attempts?: number;
-            category?: string;
+            categories?: string[];
             difficulty?: string;
             looked_at_solution?: boolean;
             name?: string;
             time_taken_mins?: number;
         };
+        "handlers.leetCodeProblemSuggestion": {
+            lc_id?: number;
+            title?: string;
+            slug?: string;
+            difficulty?: string;
+            tags?: string[];
+        };
         "handlers.problemResponse": {
             attempts?: number;
-            category?: string;
+            categories?: string[];
             created_at?: string;
             decayed_score?: number;
             difficulty?: string;

@@ -47,6 +47,7 @@ func main() {
 	userRepo := repository.NewUserRepo(database)
 	problemRepo := repository.NewProblemRepo(database)
 	categoryRepo := repository.NewCategoryRepo(database)
+	lcRepo := repository.NewLeetCodeProblemRepo(database)
 
 	authSvc := service.NewAuthService(userRepo)
 	problemSvc := service.NewProblemService(problemRepo)
@@ -55,6 +56,7 @@ func main() {
 	authHandler := &handlers.AuthHandler{Service: authSvc}
 	problemHandler := &handlers.ProblemHandler{Service: problemSvc}
 	categoryHandler := &handlers.CategoryHandler{Service: categorySvc}
+	lcHandler := &handlers.LeetCodeHandler{Repo: lcRepo}
 
 	r := chi.NewRouter()
 
@@ -84,6 +86,7 @@ func main() {
 			r.Post("/problems", problemHandler.LogProblem)
 			r.Get("/categories/stats", categoryHandler.GetStats)
 			r.Get("/categories/weakest", categoryHandler.GetWeakest)
+			r.Get("/leetcode-problems/search", lcHandler.Search)
 		})
 	})
 

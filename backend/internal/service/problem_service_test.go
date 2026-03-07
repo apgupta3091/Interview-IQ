@@ -26,7 +26,7 @@ func (m *mockProblemRepo) ListByUser(ctx context.Context, userID int) ([]models.
 func TestLog_EmptyName(t *testing.T) {
 	svc := NewProblemService(&mockProblemRepo{})
 	_, err := svc.Log(context.Background(), 1, LogProblemInput{
-		Name: "", Category: "array", Difficulty: "easy",
+		Name: "", Categories: []string{"array"}, Difficulty: "easy",
 	})
 	var ve ValidationError
 	if !errors.As(err, &ve) {
@@ -37,7 +37,7 @@ func TestLog_EmptyName(t *testing.T) {
 func TestLog_InvalidCategory(t *testing.T) {
 	svc := NewProblemService(&mockProblemRepo{})
 	_, err := svc.Log(context.Background(), 1, LogProblemInput{
-		Name: "Two Sum", Category: "invalid", Difficulty: "easy",
+		Name: "Two Sum", Categories: []string{"invalid"}, Difficulty: "easy",
 	})
 	var ve ValidationError
 	if !errors.As(err, &ve) {
@@ -48,7 +48,7 @@ func TestLog_InvalidCategory(t *testing.T) {
 func TestLog_InvalidDifficulty(t *testing.T) {
 	svc := NewProblemService(&mockProblemRepo{})
 	_, err := svc.Log(context.Background(), 1, LogProblemInput{
-		Name: "Two Sum", Category: "array", Difficulty: "extreme",
+		Name: "Two Sum", Categories: []string{"array"}, Difficulty: "extreme",
 	})
 	var ve ValidationError
 	if !errors.As(err, &ve) {
@@ -65,7 +65,7 @@ func TestLog_DefaultAttempts(t *testing.T) {
 		},
 	})
 	_, err := svc.Log(context.Background(), 1, LogProblemInput{
-		Name: "Two Sum", Category: "array", Difficulty: "easy", Attempts: 0,
+		Name: "Two Sum", Categories: []string{"array"}, Difficulty: "easy", Attempts: 0,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -84,7 +84,7 @@ func TestLog_ScoreComputed(t *testing.T) {
 		},
 	})
 	_, err := svc.Log(context.Background(), 1, LogProblemInput{
-		Name: "Two Sum", Category: "array", Difficulty: "easy",
+		Name: "Two Sum", Categories: []string{"array"}, Difficulty: "easy",
 		Attempts: 1, LookedAtSolution: false,
 	})
 	if err != nil {
@@ -104,7 +104,7 @@ func TestLog_DecayedScoreSet(t *testing.T) {
 		},
 	})
 	p, err := svc.Log(context.Background(), 1, LogProblemInput{
-		Name: "Two Sum", Category: "array", Difficulty: "easy", Attempts: 1,
+		Name: "Two Sum", Categories: []string{"array"}, Difficulty: "easy", Attempts: 1,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
