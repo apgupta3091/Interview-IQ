@@ -7,11 +7,11 @@ import Navbar from '@/components/Navbar'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import LogProblem from '@/pages/LogProblem'
+import ProblemList from '@/pages/ProblemList'
 import './index.css'
 
-// Placeholder pages — replaced in subsequent steps
+// Placeholder page — replaced in subsequent steps
 function Dashboard() { return <div className="p-8 text-lg font-semibold">Dashboard</div> }
-function ProblemList() { return <div className="p-8 text-lg font-semibold">Problems</div> }
 
 // Wraps authenticated pages: checks auth, renders navbar + page content.
 function AppLayout() {
