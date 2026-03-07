@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import axios from 'axios'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import SkillRadar from '@/components/SkillRadar'
 import { api } from '@/lib/api'
 import type { CategoryStats, WeakestResult, ApiError } from '@/types/api'
 
@@ -92,6 +93,16 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Skill radar chart */}
+      <Card>
+        <CardHeader className="pb-0">
+          <CardTitle className="text-base">Skill radar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SkillRadar stats={stats} />
+        </CardContent>
+      </Card>
 
       {/* Category strength grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
