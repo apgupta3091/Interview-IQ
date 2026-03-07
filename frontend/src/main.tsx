@@ -4,11 +4,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import type { ReactNode } from 'react'
+import Login from '@/pages/Login'
+import Register from '@/pages/Register'
 import './index.css'
 
-// Placeholder pages — filled in subsequent steps
-function Login() { return <div className="p-8 text-lg font-semibold">Login</div> }
-function Register() { return <div className="p-8 text-lg font-semibold">Register</div> }
+// Placeholder pages — replaced in subsequent steps
 function Dashboard() { return <div className="p-8 text-lg font-semibold">Dashboard</div> }
 function LogProblem() { return <div className="p-8 text-lg font-semibold">Log Problem</div> }
 function ProblemList() { return <div className="p-8 text-lg font-semibold">Problems</div> }

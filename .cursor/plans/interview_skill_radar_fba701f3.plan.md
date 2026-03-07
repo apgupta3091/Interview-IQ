@@ -40,7 +40,7 @@ todos:
     status: completed
   - id: step-13
     content: Login + Register pages
-    status: pending
+    status: completed
   - id: step-14
     content: Log Problem page (form with 6 fields)
     status: pending
