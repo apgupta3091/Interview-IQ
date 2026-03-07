@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
-import Navbar from '@/components/Navbar'
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import AppSidebar from '@/components/AppSidebar'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import LogProblem from '@/pages/LogProblem'
@@ -11,17 +12,22 @@ import ProblemList from '@/pages/ProblemList'
 import Dashboard from '@/pages/Dashboard'
 import './index.css'
 
-// Wraps authenticated pages: checks auth, renders navbar + page content.
+// Wraps authenticated pages: checks auth, renders sidebar + page content.
 function AppLayout() {
   const { isAuthenticated } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return (
-    <>
-      <Navbar />
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <Outlet />
-      </main>
-    </>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-12 items-center gap-2 border-b px-4">
+          <SidebarTrigger />
+        </header>
+        <main className="p-6">
+          <Outlet />
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 
