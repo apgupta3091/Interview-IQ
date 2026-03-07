@@ -17,12 +17,15 @@ const CATEGORIES = [
   'heap', 'dp', 'backtracking', 'greedy', 'math', 'other',
 ]
 
-const DIFFICULTIES = ['easy', 'medium', 'hard']
+const DIFFICULTIES = [
+  { value: 'easy',   label: 'Easy',   color: 'text-emerald-500' },
+  { value: 'medium', label: 'Medium', color: 'text-amber-500' },
+  { value: 'hard',   label: 'Hard',   color: 'text-red-500' },
+]
 
 export default function LogProblem() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [difficulty, setDifficulty] = useState('')
@@ -36,14 +39,7 @@ export default function LogProblem() {
     if (!difficulty) { toast.error('Please select a difficulty'); return }
     setLoading(true)
     try {
-      await api.problems.log({
-        name,
-        category,
-        difficulty,
-        attempts,
-        looked_at_solution: lookedAtSolution,
-        time_taken_mins: timeTaken,
-      })
+      await api.problems.log({ name, category, difficulty, attempts, looked_at_solution: lookedAtSolution, time_taken_mins: timeTaken })
       toast.success('Problem logged!')
       navigate('/problems')
     } catch (err) {
@@ -59,14 +55,15 @@ export default function LogProblem() {
   }
 
   return (
-    <div className="flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Log a problem</CardTitle>
-          <CardDescription>Record a problem you solved during practice.</CardDescription>
-        </CardHeader>
+    <div className="max-w-lg mx-auto animate-fade-up">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Log a problem</h1>
+        <p className="text-sm text-muted-foreground mt-1">Record a problem you solved during practice.</p>
+      </div>
+
+      <Card className="border-border/60 shadow-sm">
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5 pt-6">
             <div className="space-y-1.5">
               <Label htmlFor="name">Problem name</Label>
               <Input
@@ -78,67 +75,75 @@ export default function LogProblem() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Category</Label>
+                <Select onValueChange={setCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Difficulty</Label>
+                <Select onValueChange={setDifficulty}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIFFICULTIES.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>
+                        <span className={d.color}>{d.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Difficulty</Label>
-              <Select onValueChange={setDifficulty}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DIFFICULTIES.map((d) => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="attempts">Attempts</Label>
+                <Input
+                  id="attempts"
+                  type="number"
+                  min={1}
+                  value={attempts}
+                  onChange={(e) => setAttempts(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="time">Time (minutes)</Label>
+                <Input
+                  id="time"
+                  type="number"
+                  min={1}
+                  value={timeTaken}
+                  onChange={(e) => setTimeTaken(Number(e.target.value))}
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="attempts">Attempts</Label>
-              <Input
-                id="attempts"
-                type="number"
-                min={1}
-                value={attempts}
-                onChange={(e) => setAttempts(Number(e.target.value))}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="time">Time taken (minutes)</Label>
-              <Input
-                id="time"
-                type="number"
-                min={1}
-                value={timeTaken}
-                onChange={(e) => setTimeTaken(Number(e.target.value))}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
               <Checkbox
                 id="looked"
                 checked={lookedAtSolution}
                 onCheckedChange={(v) => setLookedAtSolution(v === true)}
               />
-              <Label htmlFor="looked">I looked at the solution</Label>
+              <div>
+                <Label htmlFor="looked" className="cursor-pointer text-sm font-medium">Looked at the solution</Label>
+                <p className="text-xs text-muted-foreground">This will reduce your score by 25 points</p>
+              </div>
             </div>
           </CardContent>
 
-          <CardFooter>
+          <CardFooter className="pt-2">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging…' : 'Log problem'}
             </Button>

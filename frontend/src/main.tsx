@@ -21,10 +21,10 @@ function AppShell() {
       className="flex flex-1 flex-col min-h-screen transition-[margin-left] duration-200 ease-linear"
       style={{ marginLeft: open ? 'var(--sidebar-width, 16rem)' : '0' }}
     >
-      <header className="flex h-12 items-center gap-2 border-b px-4">
-        <SidebarTrigger />
+      <header className="flex h-13 items-center gap-2 border-b px-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
       </header>
-      <main className="p-6">
+      <main className="p-6 max-w-6xl">
         <Outlet />
       </main>
     </div>

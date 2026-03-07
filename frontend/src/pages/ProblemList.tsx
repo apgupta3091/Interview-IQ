@@ -2,22 +2,22 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
+import { Plus, FileX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import type { Problem, ApiError } from '@/types/api'
 
-const DIFFICULTY_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
-  easy: 'default',
-  medium: 'secondary',
-  hard: 'destructive',
+const DIFFICULTY_STYLES: Record<string, string> = {
+  easy:   'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20',
+  medium: 'bg-amber-500/10  text-amber-500  border border-amber-500/20',
+  hard:   'bg-red-500/10    text-red-500    border border-red-500/20',
 }
 
 function scoreColor(score: number) {
-  if (score >= 70) return 'text-green-600'
-  if (score >= 40) return 'text-yellow-600'
-  return 'text-red-600'
+  if (score >= 70) return 'text-emerald-500'
+  if (score >= 40) return 'text-amber-500'
+  return 'text-red-500'
 }
 
 export default function ProblemList() {
@@ -39,64 +39,95 @@ export default function ProblemList() {
   }, [])
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading…</p>
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="h-7 w-28 bg-muted rounded" />
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-12 bg-muted rounded" />
+        ))}
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 animate-fade-up">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Problems</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Problems</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {problems.length} problem{problems.length !== 1 ? 's' : ''} logged
+          </p>
+        </div>
         <Button asChild size="sm">
-          <Link to="/problems/new">+ Log problem</Link>
+          <Link to="/problems/new">
+            <Plus className="w-4 h-4 mr-1" />
+            Log problem
+          </Link>
         </Button>
       </div>
 
       {problems.length === 0 ? (
-        <p className="text-muted-foreground py-12 text-center">
-          No problems logged yet.{' '}
-          <Link to="/problems/new" className="underline underline-offset-4 hover:text-primary">
-            Log your first one.
-          </Link>
-        </p>
+        <div className="flex flex-col items-center justify-center py-32 text-center">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+            <FileX className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-base font-semibold mb-1">No problems yet</p>
+          <p className="text-sm text-muted-foreground">
+            <Link to="/problems/new" className="text-primary hover:underline underline-offset-4">
+              Log your first problem
+            </Link>{' '}
+            to get started.
+          </p>
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Difficulty</TableHead>
-              <TableHead className="text-center">Attempts</TableHead>
-              <TableHead className="text-center">Peeked</TableHead>
-              <TableHead className="text-right">Score</TableHead>
-              <TableHead className="text-right">Decayed</TableHead>
-              <TableHead className="text-right">Solved</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {problems.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.name}</TableCell>
-                <TableCell>{p.category}</TableCell>
-                <TableCell>
-                  <Badge variant={DIFFICULTY_VARIANT[p.difficulty ?? ''] ?? 'default'}>
-                    {p.difficulty}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-center">{p.attempts}</TableCell>
-                <TableCell className="text-center">{p.looked_at_solution ? 'Yes' : 'No'}</TableCell>
-                <TableCell className={`text-right font-mono ${scoreColor(p.score ?? 0)}`}>
-                  {p.score}
-                </TableCell>
-                <TableCell className={`text-right font-mono ${scoreColor(p.decayed_score ?? 0)}`}>
-                  {Math.round(p.decayed_score ?? 0)}
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground text-sm">
-                  {p.solved_at ? new Date(p.solved_at).toLocaleDateString() : '—'}
-                </TableCell>
+        <div className="rounded-lg border border-border/60 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead className="font-medium">Problem</TableHead>
+                <TableHead className="font-medium">Category</TableHead>
+                <TableHead className="font-medium">Difficulty</TableHead>
+                <TableHead className="text-center font-medium">Attempts</TableHead>
+                <TableHead className="text-center font-medium">Peeked</TableHead>
+                <TableHead className="text-right font-medium">Score</TableHead>
+                <TableHead className="text-right font-medium">Decayed</TableHead>
+                <TableHead className="text-right font-medium">Solved</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {problems.map((p) => (
+                <TableRow key={p.id} className="hover:bg-muted/20 transition-colors">
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>
+                    <span className="text-xs bg-muted px-2 py-0.5 rounded-md text-muted-foreground">
+                      {p.category}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${DIFFICULTY_STYLES[p.difficulty ?? ''] ?? ''}`}>
+                      {p.difficulty}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground">{p.attempts}</TableCell>
+                  <TableCell className="text-center">
+                    <span className={p.looked_at_solution ? 'text-amber-500 text-xs' : 'text-muted-foreground text-xs'}>
+                      {p.looked_at_solution ? 'Yes' : 'No'}
+                    </span>
+                  </TableCell>
+                  <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.score ?? 0)}`}>
+                    {p.score}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.decayed_score ?? 0)}`}>
+                    {Math.round(p.decayed_score ?? 0)}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground">
+                    {p.solved_at ? new Date(p.solved_at).toLocaleDateString() : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   )
