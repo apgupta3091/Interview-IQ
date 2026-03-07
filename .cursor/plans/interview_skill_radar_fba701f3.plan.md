@@ -37,7 +37,7 @@ todos:
     status: completed
   - id: step-12
     content: Axios client with JWT interceptor + auth context
-    status: pending
+    status: completed
   - id: step-13
     content: Login + Register pages
     status: pending
