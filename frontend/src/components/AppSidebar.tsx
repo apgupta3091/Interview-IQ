@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, PlusCircle, LogOut } from 'lucide-react'
+import { LayoutDashboard, ListChecks, PlusCircle, LogOut, Sun, Moon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +25,7 @@ export default function AppSidebar() {
   const { pathname } = useLocation()
   const { logout, email } = useAuth()
   const navigate = useNavigate()
+  const { theme, setTheme } = useTheme()
 
   function handleLogout() {
     logout()
@@ -59,6 +61,12 @@ export default function AppSidebar() {
 
       <SidebarFooter className="p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? <Sun /> : <Moon />}
+              <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout}>
               <LogOut />

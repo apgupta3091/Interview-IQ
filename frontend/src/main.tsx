@@ -1,9 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import AppSidebar from '@/components/AppSidebar'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
@@ -12,6 +13,24 @@ import ProblemList from '@/pages/ProblemList'
 import Dashboard from '@/pages/Dashboard'
 import './index.css'
 
+// Inner shell — must be inside SidebarProvider to access useSidebar.
+function AppShell() {
+  const { open } = useSidebar()
+  return (
+    <div
+      className="flex flex-1 flex-col min-h-screen transition-[margin-left] duration-200 ease-linear"
+      style={{ marginLeft: open ? 'var(--sidebar-width, 16rem)' : '0' }}
+    >
+      <header className="flex h-12 items-center gap-2 border-b px-4">
+        <SidebarTrigger />
+      </header>
+      <main className="p-6">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+
 // Wraps authenticated pages: checks auth, renders sidebar + page content.
 function AppLayout() {
   const { isAuthenticated } = useAuth()
@@ -19,20 +38,14 @@ function AppLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-12 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
-        </header>
-        <main className="p-6">
-          <Outlet />
-        </main>
-      </SidebarInset>
+      <AppShell />
     </SidebarProvider>
   )
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <BrowserRouter>
       <AuthProvider>
         <Routes>
@@ -48,5 +61,6 @@ createRoot(document.getElementById('root')!).render(
         <Toaster />
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   </StrictMode>,
 )
