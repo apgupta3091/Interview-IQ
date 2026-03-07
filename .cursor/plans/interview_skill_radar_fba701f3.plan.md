@@ -34,7 +34,7 @@ todos:
     status: pending
   - id: step-11
     content: "Frontend: Vite + React + ShadCN + Recharts + React Router init"
-    status: pending
+    status: completed
   - id: step-12
     content: Axios client with JWT interceptor + auth context
     status: pending
