@@ -89,6 +89,7 @@ export default function ProblemList() {
                 <TableHead className="font-medium">Difficulty</TableHead>
                 <TableHead className="text-center font-medium">Attempts</TableHead>
                 <TableHead className="text-center font-medium">Peeked</TableHead>
+                <TableHead className="text-center font-medium">Solution</TableHead>
                 <TableHead className="text-right font-medium">Score</TableHead>
                 <TableHead className="text-right font-medium">Decayed</TableHead>
                 <TableHead className="text-right font-medium">Solved</TableHead>
@@ -117,6 +118,17 @@ export default function ProblemList() {
                     <span className={p.looked_at_solution ? 'text-amber-500 text-xs' : 'text-muted-foreground text-xs'}>
                       {p.looked_at_solution ? 'Yes' : 'No'}
                     </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {p.solution_type === 'optimal' && (
+                      <span className="text-xs font-medium text-emerald-500">Optimal</span>
+                    )}
+                    {p.solution_type === 'brute_force' && (
+                      <span className="text-xs font-medium text-amber-500">Brute force</span>
+                    )}
+                    {(!p.solution_type || p.solution_type === 'none') && (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.score ?? 0)}`}>
                     {p.score}

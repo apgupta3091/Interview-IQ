@@ -10,7 +10,9 @@ const (
 	attemptPenalty    = 10 // deducted per extra attempt beyond the first
 	maxAttemptPenalty = 40 // cap so score can't go below 60 from attempts alone
 	solutionPenalty   = 25 // deducted if the user looked at the solution
-	minScore          = 5  // floor — logging any problem is worth something
+	bruteForcePenalty = 15 // deducted when only a brute-force (non-optimal) solution was reached;
+	// less severe than peeking but still acknowledges the gap to optimal
+	minScore = 5 // floor — logging any problem is worth something
 
 	decayGraceDays  = 3    // no decay within the first 3 days
 	decayPerDay     = 2.0  // points lost per day after grace period
@@ -19,7 +21,11 @@ const (
 
 // ComputeScore calculates the raw score for a problem attempt.
 // It does not factor in time decay — that is applied separately at read time.
-func ComputeScore(attempts int, lookedAtSolution bool) int {
+//
+// solutionType must be one of "none", "brute_force", or "optimal".
+// "brute_force" applies a penalty because reaching an optimal solution is the goal;
+// "optimal" and "none" carry no additional penalty from this dimension.
+func ComputeScore(attempts int, lookedAtSolution bool, solutionType string) int {
 	score := baseScore
 
 	// penalise extra attempts beyond the first, capped
@@ -29,6 +35,13 @@ func ComputeScore(attempts int, lookedAtSolution bool) int {
 
 	if lookedAtSolution {
 		score -= solutionPenalty
+	}
+
+	// Brute-force solution reached but not optimal — partial credit reduction.
+	// Skip the penalty if the user also peeked at the solution; the solution
+	// penalty is already the more significant one.
+	if solutionType == "brute_force" && !lookedAtSolution {
+		score -= bruteForcePenalty
 	}
 
 	score = max(score, minScore)

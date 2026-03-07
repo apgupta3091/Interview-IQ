@@ -22,6 +22,10 @@ type logProblemRequest struct {
 	Attempts         int      `json:"attempts"`
 	LookedAtSolution bool     `json:"looked_at_solution"`
 	TimeTakenMins    int      `json:"time_taken_mins"`
+	// SolutionType indicates how the user solved the problem.
+	// Accepted values: "none" (default), "brute_force", "optimal".
+	// "brute_force" applies a -15 point penalty; the others carry no penalty.
+	SolutionType string `json:"solution_type"`
 }
 
 type problemResponse struct {
@@ -32,6 +36,7 @@ type problemResponse struct {
 	Attempts         int       `json:"attempts"`
 	LookedAtSolution bool      `json:"looked_at_solution"`
 	TimeTakenMins    int       `json:"time_taken_mins"`
+	SolutionType     string    `json:"solution_type"`
 	Score            int       `json:"score"`
 	DecayedScore     float64   `json:"decayed_score"`
 	SolvedAt         time.Time `json:"solved_at"`
@@ -51,6 +56,7 @@ func toProblemResponse(p models.Problem) problemResponse {
 		Attempts:         p.Attempts,
 		LookedAtSolution: p.LookedAtSolution,
 		TimeTakenMins:    p.TimeTakenMins,
+		SolutionType:     p.SolutionType,
 		Score:            p.Score,
 		DecayedScore:     p.DecayedScore,
 		SolvedAt:         p.SolvedAt,
@@ -113,6 +119,7 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 		Attempts:         req.Attempts,
 		LookedAtSolution: req.LookedAtSolution,
 		TimeTakenMins:    req.TimeTakenMins,
+		SolutionType:     req.SolutionType,
 	})
 	if err != nil {
 		var ve service.ValidationError

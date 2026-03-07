@@ -23,10 +23,10 @@ var validDifficulties = map[string]bool{
 }
 
 type LogProblemInput struct {
-	Name, Difficulty        string
-	Categories              []string
-	Attempts, TimeTakenMins int
-	LookedAtSolution        bool
+	Name, Difficulty, SolutionType string
+	Categories                     []string
+	Attempts, TimeTakenMins        int
+	LookedAtSolution               bool
 }
 
 type ProblemService interface {
@@ -66,7 +66,13 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 		req.Attempts = 1
 	}
 
-	score := models.ComputeScore(req.Attempts, req.LookedAtSolution)
+	// Normalise solution_type; default to "none" if unrecognised.
+	validSolutionTypes := map[string]bool{"none": true, "brute_force": true, "optimal": true}
+	if !validSolutionTypes[req.SolutionType] {
+		req.SolutionType = "none"
+	}
+
+	score := models.ComputeScore(req.Attempts, req.LookedAtSolution, req.SolutionType)
 	solvedAt := time.Now()
 
 	p, err := s.problems.Insert(ctx, repository.InsertProblemParams{
@@ -77,6 +83,7 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 		Attempts:         req.Attempts,
 		TimeTakenMins:    req.TimeTakenMins,
 		LookedAtSolution: req.LookedAtSolution,
+		SolutionType:     req.SolutionType,
 		Score:            score,
 		SolvedAt:         solvedAt,
 	})

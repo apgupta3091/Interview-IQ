@@ -73,6 +73,7 @@ export default function LogProblem() {
   const [attempts, setAttempts] = useState('1')
   const [lookedAtSolution, setLookedAtSolution] = useState(false)
   const [timeTaken, setTimeTaken] = useState('15')
+  const [solutionType, setSolutionType] = useState<'none' | 'brute_force' | 'optimal'>('none')
 
   // Debounced search as user types in the name field
   const handleNameChange = useCallback((value: string) => {
@@ -133,6 +134,7 @@ export default function LogProblem() {
         attempts: parseInt(attempts) || 1,
         looked_at_solution: lookedAtSolution,
         time_taken_mins: parseInt(timeTaken) || 1,
+        solution_type: solutionType,
       })
       toast.success('Problem logged!')
       navigate('/problems')
@@ -174,7 +176,7 @@ export default function LogProblem() {
               {showSuggestions && suggestions.length > 0 && (
                 <div
                   className="absolute z-50 w-full top-full mt-1 rounded-md border border-border bg-popover shadow-md overflow-hidden"
-                  onMouseDown={(e) => e.preventDefault()} // prevent blur on click
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }} // prevent blur and stop document listener
                 >
                   <ul className="max-h-52 overflow-y-auto py-1">
                     {suggestions.map((s) => (
@@ -287,6 +289,40 @@ export default function LogProblem() {
               <div>
                 <Label htmlFor="looked" className="cursor-pointer text-sm font-medium">Looked at the solution</Label>
                 <p className="text-xs text-muted-foreground">Reduces your score by 25 points</p>
+              </div>
+            </div>
+
+            {/* Solution type */}
+            <div className="space-y-2">
+              <Label>Solution achieved</Label>
+              <p className="text-xs text-muted-foreground -mt-1">Brute-force reduces score by 15 pts; optimal carries no penalty.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { value: 'none',        label: 'Not specified', desc: 'No impact' },
+                    { value: 'brute_force', label: 'Brute force',   desc: '−15 pts' },
+                    { value: 'optimal',     label: 'Optimal',       desc: 'No impact' },
+                  ] as const
+                ).map(({ value, label, desc }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSolutionType(value)}
+                    className={cn(
+                      'flex flex-col items-center justify-center rounded-lg border px-2 py-2.5 text-sm transition-colors',
+                      solutionType === value
+                        ? value === 'brute_force'
+                          ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          : value === 'optimal'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'border-primary bg-primary/10 text-primary'
+                        : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40',
+                    )}
+                  >
+                    <span className="font-medium leading-tight">{label}</span>
+                    <span className="text-xs opacity-70 mt-0.5">{desc}</span>
+                  </button>
+                ))}
               </div>
             </div>
 

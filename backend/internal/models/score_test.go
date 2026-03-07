@@ -10,23 +10,35 @@ func TestComputeScore(t *testing.T) {
 		name             string
 		attempts         int
 		lookedAtSolution bool
+		solutionType     string
 		want             int
 	}{
-		{"perfect: 1 attempt, no solution", 1, false, 100},
-		{"2 attempts, no solution", 2, false, 90},
-		{"3 attempts, no solution", 3, false, 80},
-		{"1 attempt, looked at solution", 1, true, 75},
-		{"3 attempts, looked at solution", 3, true, 55},
-		{"5 attempts, no solution (cap at -40)", 5, false, 60},
-		{"6 attempts, no solution (still capped)", 6, false, 60},
-		{"many attempts + solution (floor at 5)", 10, true, 35},
+		// optimal / none — no extra penalty from solution type
+		{"perfect: 1 attempt, optimal", 1, false, "optimal", 100},
+		{"perfect: 1 attempt, none", 1, false, "none", 100},
+		{"2 attempts, optimal", 2, false, "optimal", 90},
+		{"3 attempts, optimal", 3, false, "optimal", 80},
+		{"1 attempt, looked at solution", 1, true, "none", 75},
+		{"3 attempts, looked at solution", 3, true, "none", 55},
+		{"5 attempts, optimal (cap at -40)", 5, false, "optimal", 60},
+		{"6 attempts, optimal (still capped)", 6, false, "optimal", 60},
+		{"many attempts + solution (floor at 5)", 10, true, "none", 35},
+
+		// brute_force — -15 penalty when not peeking
+		{"1 attempt, brute force", 1, false, "brute_force", 85},
+		{"3 attempts, brute force", 3, false, "brute_force", 65},
+		{"5 attempts, brute force (attempt cap already hit)", 5, false, "brute_force", 45},
+
+		// brute_force + peeked — solution penalty dominates; brute_force penalty skipped
+		{"1 attempt, brute force + peeked", 1, true, "brute_force", 75},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ComputeScore(tc.attempts, tc.lookedAtSolution)
+			got := ComputeScore(tc.attempts, tc.lookedAtSolution, tc.solutionType)
 			if got != tc.want {
-				t.Errorf("ComputeScore(%d, %v) = %d, want %d", tc.attempts, tc.lookedAtSolution, got, tc.want)
+				t.Errorf("ComputeScore(%d, %v, %q) = %d, want %d",
+					tc.attempts, tc.lookedAtSolution, tc.solutionType, got, tc.want)
 			}
 		})
 	}

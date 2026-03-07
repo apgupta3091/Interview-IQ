@@ -12,7 +12,7 @@ import (
 
 type InsertProblemParams struct {
 	UserID, Attempts, TimeTakenMins, Score int
-	Name, Difficulty                       string
+	Name, Difficulty, SolutionType         string
 	Categories                             []string
 	LookedAtSolution                       bool
 	SolvedAt                               time.Time
@@ -35,17 +35,17 @@ func (r *sqlProblemRepo) Insert(ctx context.Context, p InsertProblemParams) (mod
 	var prob models.Problem
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO problems
-			(user_id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at)
+			(user_id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at, solution_type)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at, created_at`,
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at, created_at, solution_type`,
 		p.UserID, p.Name, pq.Array(p.Categories), p.Difficulty,
 		p.Attempts, p.LookedAtSolution, p.TimeTakenMins,
-		p.Score, p.SolvedAt,
+		p.Score, p.SolvedAt, p.SolutionType,
 	).Scan(
 		&prob.ID, &prob.Name, pq.Array(&prob.Categories), &prob.Difficulty,
 		&prob.Attempts, &prob.LookedAtSolution, &prob.TimeTakenMins,
-		&prob.Score, &prob.SolvedAt, &prob.CreatedAt,
+		&prob.Score, &prob.SolvedAt, &prob.CreatedAt, &prob.SolutionType,
 	)
 	if err != nil {
 		return models.Problem{}, err
@@ -57,7 +57,7 @@ func (r *sqlProblemRepo) Insert(ctx context.Context, p InsertProblemParams) (mod
 func (r *sqlProblemRepo) ListByUser(ctx context.Context, userID int) ([]models.Problem, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, name, categories, difficulty, attempts, looked_at_solution,
-		       time_taken_mins, score, solved_at, created_at
+		       time_taken_mins, score, solved_at, created_at, solution_type
 		FROM problems
 		WHERE user_id = $1
 		ORDER BY created_at DESC`,
@@ -75,7 +75,7 @@ func (r *sqlProblemRepo) ListByUser(ctx context.Context, userID int) ([]models.P
 		if err := rows.Scan(
 			&p.ID, &p.Name, pq.Array(&p.Categories), &p.Difficulty,
 			&p.Attempts, &p.LookedAtSolution, &p.TimeTakenMins,
-			&p.Score, &p.SolvedAt, &p.CreatedAt,
+			&p.Score, &p.SolvedAt, &p.CreatedAt, &p.SolutionType,
 		); err != nil {
 			return nil, err
 		}

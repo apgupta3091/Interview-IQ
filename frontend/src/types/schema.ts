@@ -408,6 +408,8 @@ export interface components {
             looked_at_solution?: boolean;
             name?: string;
             time_taken_mins?: number;
+            /** "none" | "brute_force" | "optimal" */
+            solution_type?: string;
         };
         "handlers.leetCodeProblemSuggestion": {
             lc_id?: number;
@@ -426,6 +428,8 @@ export interface components {
             looked_at_solution?: boolean;
             name?: string;
             score?: number;
+            /** "none" | "brute_force" | "optimal" */
+            solution_type?: string;
             solved_at?: string;
             time_taken_mins?: number;
         };

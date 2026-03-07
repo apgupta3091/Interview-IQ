@@ -4,7 +4,7 @@ import "time"
 
 type Problem struct {
 	ID, UserID, Score, Attempts, TimeTakenMins int
-	Name, Difficulty                           string
+	Name, Difficulty, SolutionType             string
 	Categories                                 []string
 	LookedAtSolution                           bool
 	DecayedScore                               float64
