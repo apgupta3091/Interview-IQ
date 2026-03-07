@@ -20,12 +20,18 @@ func NewCategoryRepo(db *sql.DB) CategoryRepository {
 }
 
 func (r *sqlCategoryRepo) GetRawScoresByUser(ctx context.Context, userID int) ([]models.CategoryRawScore, error) {
-	// UNNEST expands the categories array so each category gets its own row with
-	// the problem's full score — multi-category problems contribute to every category.
+	// DISTINCT ON (name) picks the most recent log per problem name (ordered by
+	// created_at DESC), so a user who retries and improves is scored on their
+	// latest attempt rather than an average of all attempts.
+	// UNNEST then expands categories so each category gets its own row.
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT UNNEST(categories) AS category, score, solved_at
-		FROM problems
-		WHERE user_id = $1`,
+		FROM (
+			SELECT DISTINCT ON (name) name, categories, score, solved_at
+			FROM problems
+			WHERE user_id = $1
+			ORDER BY name, created_at DESC
+		) latest`,
 		userID,
 	)
 	if err != nil {

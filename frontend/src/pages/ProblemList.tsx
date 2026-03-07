@@ -20,6 +20,27 @@ function scoreColor(score: number) {
   return 'text-red-500'
 }
 
+// Build a map of name → occurrence count across the full list.
+// The list arrives sorted by created_at DESC, so the first occurrence of
+// each name is the latest attempt — that's the one driving category stats.
+function buildAttemptMeta(problems: Problem[]): { nameCounts: Record<string, number>; latestIds: Set<number> } {
+  const nameCounts: Record<string, number> = {}
+  for (const p of problems) {
+    const name = p.name ?? ''
+    nameCounts[name] = (nameCounts[name] ?? 0) + 1
+  }
+  const seenNames = new Set<string>()
+  const latestIds = new Set<number>()
+  for (const p of problems) {
+    const name = p.name ?? ''
+    if (!seenNames.has(name)) {
+      seenNames.add(name)
+      if (p.id !== undefined) latestIds.add(p.id)
+    }
+  }
+  return { nameCounts, latestIds }
+}
+
 export default function ProblemList() {
   const [problems, setProblems] = useState<Problem[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,6 +58,8 @@ export default function ProblemList() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  const { nameCounts, latestIds } = buildAttemptMeta(problems)
 
   if (loading) {
     return (
@@ -98,7 +121,19 @@ export default function ProblemList() {
             <TableBody>
               {problems.map((p) => (
                 <TableRow key={p.id} className="hover:bg-muted/20 transition-colors">
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <span>{p.name}</span>
+                    {nameCounts[p.name ?? ''] > 1 && latestIds.has(p.id ?? -1) && (
+                      <span className="ml-2 text-xs font-medium text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                        Latest
+                      </span>
+                    )}
+                    {nameCounts[p.name ?? ''] > 1 && !latestIds.has(p.id ?? -1) && (
+                      <span className="ml-2 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        Earlier attempt
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {(p.categories ?? []).map((cat) => (

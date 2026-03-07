@@ -53,6 +53,42 @@ func TestGetStats_Aggregates(t *testing.T) {
 	}
 }
 
+// TestGetStats_LatestEntryWins verifies that when the repo already returns only
+// the latest log per problem name (via DISTINCT ON), GetStats reflects that
+// latest score rather than an average of all historical attempts.
+// The mock simulates what the repo would return after the DISTINCT ON filter:
+// one entry for "Two Sum" at score 100 (the improvement, not the earlier 65).
+func TestGetStats_LatestEntryWins(t *testing.T) {
+	now := time.Now()
+	svc := NewCategoryService(&mockCategoryRepo{
+		getRawScoresFn: func(_ context.Context, _ int) ([]models.CategoryRawScore, error) {
+			// Repo returns only the latest entry per name — score 100 for "Two Sum".
+			return []models.CategoryRawScore{
+				{Category: "array", Score: 100, SolvedAt: now},
+			}, nil
+		},
+	})
+
+	stats, err := svc.GetStats(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 category, got %d", len(stats))
+	}
+	if stats[0].Category != "array" {
+		t.Errorf("expected category=array, got %s", stats[0].Category)
+	}
+	// Strength should reflect the latest score (100), not an average with any
+	// earlier attempt. ApplyDecay on a just-solved problem leaves score at 100.
+	if stats[0].Strength != 100.0 {
+		t.Errorf("expected strength=100.0 (latest attempt wins), got %f", stats[0].Strength)
+	}
+	if stats[0].ProblemCount != 1 {
+		t.Errorf("expected problem_count=1, got %d", stats[0].ProblemCount)
+	}
+}
+
 func TestGetWeakest_FindsMin(t *testing.T) {
 	now := time.Now()
 	svc := NewCategoryService(&mockCategoryRepo{
