@@ -1,4 +1,4 @@
-import { X, ChevronDown } from 'lucide-react'
+import { Search, X, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 
-const CATEGORIES = [
+export const CATEGORIES = [
   'array', 'string', 'hash-map', 'two-pointers', 'sliding-window',
   'binary-search', 'stack', 'queue', 'linked-list', 'tree', 'trie',
   'graph', 'advanced-graphs', 'heap', 'dp', 'dp-2d', 'backtracking',
@@ -30,7 +30,9 @@ type Props = {
   onScoreMin: (v: string) => void
   scoreMax: string
   onScoreMax: (v: string) => void
+  /** True when any draft OR applied filter is active — shows the Clear button. */
   hasFilters: boolean
+  onApply: () => void
   onClear: () => void
 }
 
@@ -64,13 +66,22 @@ function MultiSelect({
       <PopoverContent className="w-52 p-2" align="start">
         <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
           {options.map((opt) => (
-            <div key={opt} className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-muted/50 cursor-pointer" onClick={() => toggle(opt)}>
+            <div
+              key={opt}
+              className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-muted/50 cursor-pointer"
+              onClick={() => toggle(opt)}
+            >
               <Checkbox
                 id={`${label}-${opt}`}
                 checked={selected.includes(opt)}
+                onClick={(e) => e.stopPropagation()}
                 onCheckedChange={() => toggle(opt)}
               />
-              <Label htmlFor={`${label}-${opt}`} className="text-xs cursor-pointer capitalize">
+              <Label
+                htmlFor={`${label}-${opt}`}
+                className="text-xs cursor-pointer capitalize"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {opt}
               </Label>
             </div>
@@ -89,7 +100,7 @@ export default function ProblemFilters({
   selectedDifficulties, onDifficultiesChange,
   scoreMin, onScoreMin,
   scoreMax, onScoreMax,
-  hasFilters, onClear,
+  hasFilters, onApply, onClear,
 }: Props) {
   return (
     <div className="space-y-2">
@@ -98,11 +109,12 @@ export default function ProblemFilters({
         placeholder="Search by problem name…"
         value={nameSearch}
         onChange={(e) => onNameSearch(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onApply()}
         className="h-8 text-sm"
         maxLength={200}
       />
 
-      {/* Row 2: all filter controls */}
+      {/* Row 2: filter controls + action buttons */}
       <div className="flex flex-wrap items-center gap-2">
         <MultiSelect
           label="Category"
@@ -165,6 +177,13 @@ export default function ProblemFilters({
           />
         </div>
 
+        <Separator orientation="vertical" className="h-5" />
+
+        {/* Action buttons */}
+        <Button size="sm" className="h-8 text-xs gap-1" onClick={onApply}>
+          <Search className="w-3.5 h-3.5" />
+          Apply filters
+        </Button>
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground gap-1" onClick={onClear}>
             <X className="w-3.5 h-3.5" />

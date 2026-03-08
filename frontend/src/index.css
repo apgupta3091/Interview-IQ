@@ -104,9 +104,18 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Indeterminate progress bar: a highlight slides left-to-right indefinitely. */
+@keyframes progress-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
 @layer utilities {
   .animate-fade-up {
     animation: fade-up 0.35s ease-out forwards;
+  }
+  .animate-progress-slide {
+    animation: progress-slide 1.4s ease-in-out infinite;
   }
 }
 

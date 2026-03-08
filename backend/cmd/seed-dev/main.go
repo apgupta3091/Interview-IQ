@@ -15,6 +15,7 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/apgupta3091/interview-iq/internal/db"
@@ -22,9 +23,16 @@ import (
 	"github.com/apgupta3091/interview-iq/internal/repository"
 )
 
-const devClerkUserID = "dev_seed_user"
-
 func main() {
+	// Allow overriding the target Clerk user ID via env so the seed can be
+	// run against a real account:
+	//   CLERK_USER_ID=user_xxx go run ./cmd/seed-dev
+	clerkUserID := os.Getenv("CLERK_USER_ID")
+	if clerkUserID == "" {
+		clerkUserID = "dev_seed_user"
+	}
+	log.Printf("seeding for clerk_user_id = %q", clerkUserID)
+
 	database, err := db.Connect()
 	if err != nil {
 		log.Fatalf("db connect: %v", err)
@@ -39,8 +47,8 @@ func main() {
 	userRepo := repository.NewUserRepo(database)
 	problemRepo := repository.NewProblemRepo(database)
 
-	// Upsert the dev seed user — safe to run repeatedly.
-	userID, err := userRepo.GetOrCreateByClerkID(ctx, devClerkUserID)
+	// Upsert the user row — safe to run repeatedly.
+	userID, err := userRepo.GetOrCreateByClerkID(ctx, clerkUserID)
 	if err != nil {
 		log.Fatalf("upsert dev user: %v", err)
 	}

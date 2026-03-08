@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
@@ -37,45 +37,67 @@ function buildAttemptMeta(problems: Problem[]) {
   return { nameCounts, latestIds }
 }
 
+// ---------------------------------------------------------------------------
+// Filter state
+// ---------------------------------------------------------------------------
+
+type FilterState = {
+  nameSearch: string
+  categories: string[]
+  difficulties: string[]
+  scoreMin: string
+  scoreMax: string
+  dateFrom: string
+  dateTo: string
+}
+
+const EMPTY_FILTERS: FilterState = {
+  nameSearch: '', categories: [], difficulties: [],
+  scoreMin: '', scoreMax: '', dateFrom: '', dateTo: '',
+}
+
+function hasAnyFilter(f: FilterState) {
+  return !!(f.nameSearch || f.categories.length || f.difficulties.length ||
+            f.scoreMin || f.scoreMax || f.dateFrom || f.dateTo)
+}
+
+// ---------------------------------------------------------------------------
+
 export default function ProblemList() {
-  const [nameSearch, setNameSearch]                   = useState('')
-  const [debouncedSearch, setDebouncedSearch]         = useState('')
-  const [selectedCategories, setSelectedCategories]   = useState<string[]>([])
-  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([])
-  const [scoreMin, setScoreMin]   = useState('')
-  const [scoreMax, setScoreMax]   = useState('')
-  const [dateFrom, setDateFrom]   = useState('')
-  const [dateTo, setDateTo]       = useState('')
-  const [offset, setOffset]       = useState(0)
+  // draft  — what the filter controls show (not yet applied to the query)
+  const [draft, setDraft]     = useState<FilterState>(EMPTY_FILTERS)
+  // applied — committed filters; the fetch effect depends on this value
+  const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS)
+  const [offset, setOffset]   = useState(0)
 
-  const [result, setResult]   = useState<ProblemListResponse>({ problems: [], total: 0, limit: PAGE_SIZE, offset: 0 })
-  const [loading, setLoading] = useState(true)
+  const [result, setResult]           = useState<ProblemListResponse>({ problems: [], total: 0, limit: PAGE_SIZE, offset: 0 })
+  const [loading, setLoading]         = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  // Monotonically-increasing counter to discard stale responses.
+  const fetchIdRef = useRef(0)
 
-  // Debounce the name search by 400 ms; reset to page 1 when the value settles.
+  // Fetch whenever applied filters or page offset change.
   useEffect(() => {
-    const id = setTimeout(() => {
-      setDebouncedSearch(nameSearch)
-      setOffset(0)
-    }, 400)
-    return () => clearTimeout(id)
-  }, [nameSearch])
-
-  // Fetch whenever filters or pagination change.
-  useEffect(() => {
+    const id = ++fetchIdRef.current
     setLoading(true)
     api.problems.listFiltered({
-      q:          debouncedSearch || undefined,
-      category:   selectedCategories.length ? selectedCategories : undefined,
-      difficulty: selectedDifficulties.length ? selectedDifficulties : undefined,
-      score_min:  scoreMin !== '' ? Number(scoreMin) : undefined,
-      score_max:  scoreMax !== '' ? Number(scoreMax) : undefined,
-      from:       dateFrom || undefined,
-      to:         dateTo   || undefined,
+      q:          applied.nameSearch || undefined,
+      category:   applied.categories.length  ? applied.categories  : undefined,
+      difficulty: applied.difficulties.length ? applied.difficulties : undefined,
+      score_min:  applied.scoreMin !== '' ? Number(applied.scoreMin) : undefined,
+      score_max:  applied.scoreMax !== '' ? Number(applied.scoreMax) : undefined,
+      from:       applied.dateFrom || undefined,
+      to:         applied.dateTo   || undefined,
       limit:      PAGE_SIZE,
       offset,
     })
-      .then(setResult)
+      .then((data) => {
+        if (id !== fetchIdRef.current) return
+        setResult(data)
+        setIsInitialLoad(false)
+      })
       .catch((err) => {
+        if (id !== fetchIdRef.current) return
         if (axios.isAxiosError(err)) {
           const msg = (err.response?.data as ApiError)?.error ?? 'Failed to load problems'
           toast.error(msg)
@@ -83,27 +105,30 @@ export default function ProblemList() {
           toast.error('Unexpected error')
         }
       })
-      .finally(() => setLoading(false))
-  }, [debouncedSearch, selectedCategories, selectedDifficulties, scoreMin, scoreMax, dateFrom, dateTo, offset])
+      .finally(() => {
+        if (id !== fetchIdRef.current) return
+        setLoading(false)
+      })
+  }, [applied, offset])
 
-  const hasFilters = !!(
-    nameSearch || selectedCategories.length || selectedDifficulties.length ||
-    scoreMin || scoreMax || dateFrom || dateTo
-  )
-
-  const clearFilters = () => {
-    setNameSearch('')
-    setSelectedCategories([])
-    setSelectedDifficulties([])
-    setScoreMin('')
-    setScoreMax('')
-    setDateFrom('')
-    setDateTo('')
+  // Apply copies draft → applied and resets to page 1.
+  const applyFilters = () => {
+    setApplied({ ...draft })
     setOffset(0)
   }
 
-  const problems = result.problems ?? []
-  const total    = result.total    ?? 0
+  // Clear resets both draft and applied (new object reference triggers a refetch).
+  const clearFilters = () => {
+    setDraft(EMPTY_FILTERS)
+    setApplied({ ...EMPTY_FILTERS })
+    setOffset(0)
+  }
+
+  const hasApplied       = hasAnyFilter(applied)
+  const hasDraftOrActive = hasAnyFilter(draft) || hasApplied
+
+  const problems    = result.problems ?? []
+  const total       = result.total    ?? 0
   const totalPages  = Math.ceil(total / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
   const { nameCounts, latestIds } = buildAttemptMeta(problems)
@@ -115,7 +140,7 @@ export default function ProblemList() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Problems</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {loading ? '…' : `${total} problem${total !== 1 ? 's' : ''}${hasFilters ? ' matched' : ' logged'}`}
+            {loading ? '…' : `${total} problem${total !== 1 ? 's' : ''}${hasApplied ? ' matched' : ' logged'}`}
           </p>
         </div>
         <Button asChild size="sm">
@@ -126,21 +151,27 @@ export default function ProblemList() {
         </Button>
       </div>
 
-      {/* Filters — each setter also resets to page 1 so there's no separate
-          "reset offset" effect competing with the fetch effect on mount. */}
+      {/* Filters */}
       <ProblemFilters
-        nameSearch={nameSearch}           onNameSearch={setNameSearch}
-        dateFrom={dateFrom}               onDateFrom={(v) => { setDateFrom(v); setOffset(0) }}
-        dateTo={dateTo}                   onDateTo={(v) => { setDateTo(v); setOffset(0) }}
-        selectedCategories={selectedCategories}     onCategoriesChange={(v) => { setSelectedCategories(v); setOffset(0) }}
-        selectedDifficulties={selectedDifficulties} onDifficultiesChange={(v) => { setSelectedDifficulties(v); setOffset(0) }}
-        scoreMin={scoreMin}               onScoreMin={(v) => { setScoreMin(v); setOffset(0) }}
-        scoreMax={scoreMax}               onScoreMax={(v) => { setScoreMax(v); setOffset(0) }}
-        hasFilters={hasFilters}           onClear={clearFilters}
+        nameSearch={draft.nameSearch}           onNameSearch={(v) => setDraft((d) => ({ ...d, nameSearch: v }))}
+        dateFrom={draft.dateFrom}               onDateFrom={(v) => setDraft((d) => ({ ...d, dateFrom: v }))}
+        dateTo={draft.dateTo}                   onDateTo={(v) => setDraft((d) => ({ ...d, dateTo: v }))}
+        selectedCategories={draft.categories}   onCategoriesChange={(v) => setDraft((d) => ({ ...d, categories: v }))}
+        selectedDifficulties={draft.difficulties} onDifficultiesChange={(v) => setDraft((d) => ({ ...d, difficulties: v }))}
+        scoreMin={draft.scoreMin}               onScoreMin={(v) => setDraft((d) => ({ ...d, scoreMin: v }))}
+        scoreMax={draft.scoreMax}               onScoreMax={(v) => setDraft((d) => ({ ...d, scoreMax: v }))}
+        hasFilters={hasDraftOrActive}
+        onApply={applyFilters}
+        onClear={clearFilters}
       />
 
-      {/* Loading skeleton */}
-      {loading ? (
+      {/* Indeterminate loading bar — visible on subsequent fetches only */}
+      <div className={`relative h-0.5 rounded-full overflow-hidden bg-border transition-opacity duration-300 ${loading && !isInitialLoad ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="absolute inset-y-0 left-0 w-1/4 bg-primary rounded-full animate-progress-slide" />
+      </div>
+
+      {/* Skeleton — initial load only */}
+      {isInitialLoad && loading ? (
         <div className="space-y-3 animate-pulse">
           {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-muted rounded" />)}
         </div>
@@ -150,10 +181,10 @@ export default function ProblemList() {
             <FileX className="w-6 h-6 text-muted-foreground" />
           </div>
           <p className="text-base font-semibold mb-1">
-            {hasFilters ? 'No problems match your filters' : 'No problems yet'}
+            {hasApplied ? 'No problems match your filters' : 'No problems yet'}
           </p>
           <p className="text-sm text-muted-foreground">
-            {hasFilters ? (
+            {hasApplied ? (
               <button onClick={clearFilters} className="text-primary hover:underline underline-offset-4">
                 Clear filters
               </button>
@@ -162,11 +193,11 @@ export default function ProblemList() {
                 Log your first problem
               </Link>
             )}{' '}
-            {!hasFilters && 'to get started.'}
+            {!hasApplied && 'to get started.'}
           </p>
         </div>
       ) : (
-        <>
+        <div className={`space-y-4 transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none select-none' : 'opacity-100'}`}>
           <div className="rounded-lg border border-border/60 overflow-hidden">
             <Table>
               <TableHeader>
@@ -219,7 +250,7 @@ export default function ProblemList() {
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
-                      {p.solution_type === 'optimal'    && <span className="text-xs font-medium text-emerald-500">Optimal</span>}
+                      {p.solution_type === 'optimal'     && <span className="text-xs font-medium text-emerald-500">Optimal</span>}
                       {p.solution_type === 'brute_force' && <span className="text-xs font-medium text-amber-500">Brute force</span>}
                       {(!p.solution_type || p.solution_type === 'none') && <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
@@ -264,7 +295,7 @@ export default function ProblemList() {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )
