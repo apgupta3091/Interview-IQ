@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/apgupta3091/interview-iq/internal/middleware"
@@ -64,30 +65,99 @@ func toProblemResponse(p models.Problem) problemResponse {
 	}
 }
 
+// listProblemsResponse is the paginated envelope returned by ListProblems.
+type listProblemsResponse struct {
+	Problems []problemResponse `json:"problems"`
+	Total    int               `json:"total"`
+	Limit    int               `json:"limit"`
+	Offset   int               `json:"offset"`
+}
+
 // ListProblems godoc
-// @Summary      List all logged problems
-// @Description  Returns all problems logged by the authenticated user, ordered newest first. Each problem includes its raw score and live decayed score computed at request time.
+// @Summary      List logged problems with filtering and pagination
+// @Description  Returns a paginated, filtered list of problems for the authenticated user, always sorted by created_at DESC. Supports name search, date range, category/difficulty/score filters, and offset-based pagination.
 // @Tags         problems
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {array}   problemResponse "List of problems with decayed scores"
-// @Failure      401  {object}  errorResponse   "Missing or invalid JWT token"
-// @Failure      500  {object}  errorResponse   "Internal server error"
+// @Param        q           query  string  false  "Name search (case-insensitive partial match)"
+// @Param        category    query  []string false  "Category filter (repeatable; matches any)"
+// @Param        difficulty  query  []string false  "Difficulty filter (repeatable: easy|medium|hard)"
+// @Param        score_min   query  int     false  "Minimum raw score (inclusive)"
+// @Param        score_max   query  int     false  "Maximum raw score (inclusive)"
+// @Param        from        query  string  false  "Solved-on start date YYYY-MM-DD (inclusive)"
+// @Param        to          query  string  false  "Solved-on end date YYYY-MM-DD (inclusive)"
+// @Param        limit       query  int     false  "Page size (default 20)"
+// @Param        offset      query  int     false  "Record offset (default 0)"
+// @Success      200  {object}  listProblemsResponse "Paginated problem list"
+// @Failure      401  {object}  errorResponse        "Missing or invalid JWT token"
+// @Failure      500  {object}  errorResponse        "Internal server error"
 // @Router       /problems [get]
 func (h *ProblemHandler) ListProblems(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
+	q := r.URL.Query()
 
-	problems, err := h.Service.List(r.Context(), userID)
+	params := service.ListProblemsParams{
+		NameSearch:   q.Get("q"),
+		Categories:   q["category"],
+		Difficulties: q["difficulty"],
+		Limit:        20, // default page size
+	}
+
+	// Parse optional score bounds.
+	if v := q.Get("score_min"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			params.ScoreMin = &n
+		}
+	}
+	if v := q.Get("score_max"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			params.ScoreMax = &n
+		}
+	}
+
+	// Parse optional date range (YYYY-MM-DD).
+	// 'from' is inclusive; 'to' is made exclusive by adding 1 day so the
+	// selected end date is fully included.
+	if v := q.Get("from"); v != "" {
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			params.DateFrom = &t
+		}
+	}
+	if v := q.Get("to"); v != "" {
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			next := t.AddDate(0, 0, 1)
+			params.DateTo = &next
+		}
+	}
+
+	// Parse optional pagination overrides.
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			params.Limit = n
+		}
+	}
+	if v := q.Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			params.Offset = n
+		}
+	}
+
+	result, err := h.Service.ListFiltered(r.Context(), userID, params)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to fetch problems")
 		return
 	}
 
-	resp := make([]problemResponse, len(problems))
-	for i, p := range problems {
-		resp[i] = toProblemResponse(p)
+	problems := make([]problemResponse, len(result.Problems))
+	for i, p := range result.Problems {
+		problems[i] = toProblemResponse(p)
 	}
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, listProblemsResponse{
+		Problems: problems,
+		Total:    result.Total,
+		Limit:    params.Limit,
+		Offset:   params.Offset,
+	})
 }
 
 // LogProblem godoc

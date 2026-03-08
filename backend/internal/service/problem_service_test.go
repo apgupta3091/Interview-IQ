@@ -11,8 +11,9 @@ import (
 )
 
 type mockProblemRepo struct {
-	insertFn     func(ctx context.Context, p repository.InsertProblemParams) (models.Problem, error)
-	listByUserFn func(ctx context.Context, userID int) ([]models.Problem, error)
+	insertFn             func(ctx context.Context, p repository.InsertProblemParams) (models.Problem, error)
+	listByUserFn         func(ctx context.Context, userID int) ([]models.Problem, error)
+	listByUserFilteredFn func(ctx context.Context, userID int, f repository.ListProblemsFilter) (repository.ListProblemsResult, error)
 }
 
 func (m *mockProblemRepo) Insert(ctx context.Context, p repository.InsertProblemParams) (models.Problem, error) {
@@ -21,6 +22,13 @@ func (m *mockProblemRepo) Insert(ctx context.Context, p repository.InsertProblem
 
 func (m *mockProblemRepo) ListByUser(ctx context.Context, userID int) ([]models.Problem, error) {
 	return m.listByUserFn(ctx, userID)
+}
+
+func (m *mockProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f repository.ListProblemsFilter) (repository.ListProblemsResult, error) {
+	if m.listByUserFilteredFn != nil {
+		return m.listByUserFilteredFn(ctx, userID, f)
+	}
+	return repository.ListProblemsResult{}, nil
 }
 
 func TestLog_EmptyName(t *testing.T) {

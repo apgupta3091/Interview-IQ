@@ -9,6 +9,7 @@ type Schemas = components['schemas'];
 
 export type Problem                   = Schemas['handlers.problemResponse'];
 export type LogProblemRequest         = Schemas['handlers.logProblemRequest'];
+export type ProblemListResponse       = Schemas['handlers.listProblemsResponse'];
 export type CategoryStats             = Schemas['handlers.categoryStatsResponse'];
 export type WeakestResult             = Schemas['handlers.weakestResponse'];
 export type ApiError                  = Schemas['handlers.errorResponse'];

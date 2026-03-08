@@ -4,148 +4,6 @@
  */
 
 export interface paths {
-    "/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Login with existing credentials
-         * @description Authenticates a user and returns a JWT token valid for 7 days.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            /** @description Login credentials */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["handlers.authRequest"];
-                };
-            };
-            responses: {
-                /** @description JWT token and email */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.authResponse"];
-                    };
-                };
-                /** @description Invalid request body */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.errorResponse"];
-                    };
-                };
-                /** @description Invalid email or password */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.errorResponse"];
-                    };
-                };
-                /** @description Internal server error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.errorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register a new user
-         * @description Creates a new user account with email and password. Returns a JWT token on success.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            /** @description Registration credentials (password min 8 chars) */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["handlers.authRequest"];
-                };
-            };
-            responses: {
-                /** @description JWT token and email */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.authResponse"];
-                    };
-                };
-                /** @description Invalid input or password too short */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.errorResponse"];
-                    };
-                };
-                /** @description Email already registered */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.errorResponse"];
-                    };
-                };
-                /** @description Internal server error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["handlers.errorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/categories/stats": {
         parameters: {
             query?: never;
@@ -277,25 +135,44 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all logged problems
-         * @description Returns all problems logged by the authenticated user, ordered newest first. Each problem includes its raw score and live decayed score computed at request time.
+         * List logged problems with filtering and pagination
+         * @description Returns a paginated, filtered list of problems for the authenticated user, always sorted by created_at DESC. Supports name search, date range, category/difficulty/score filters, and offset-based pagination.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Name search (case-insensitive partial match) */
+                    q?: string;
+                    /** @description Category filter (repeatable; matches any) */
+                    category?: string[];
+                    /** @description Difficulty filter (repeatable: easy|medium|hard) */
+                    difficulty?: string[];
+                    /** @description Minimum raw score (inclusive) */
+                    score_min?: number;
+                    /** @description Maximum raw score (inclusive) */
+                    score_max?: number;
+                    /** @description Solved-on start date YYYY-MM-DD (inclusive) */
+                    from?: string;
+                    /** @description Solved-on end date YYYY-MM-DD (inclusive) */
+                    to?: string;
+                    /** @description Page size (default 20) */
+                    limit?: number;
+                    /** @description Record offset (default 0) */
+                    offset?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description List of problems with decayed scores */
+                /** @description Paginated problem list */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["handlers.problemResponse"][];
+                        "application/json": components["schemas"]["handlers.listProblemsResponse"];
                     };
                 };
                 /** @description Missing or invalid JWT token */
@@ -385,14 +262,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        "handlers.authRequest": {
-            email?: string;
-            password?: string;
-        };
-        "handlers.authResponse": {
-            email?: string;
-            token?: string;
-        };
         "handlers.categoryStatsResponse": {
             category?: string;
             problem_count?: number;
@@ -401,22 +270,25 @@ export interface components {
         "handlers.errorResponse": {
             error?: string;
         };
+        "handlers.listProblemsResponse": {
+            limit?: number;
+            offset?: number;
+            problems?: components["schemas"]["handlers.problemResponse"][];
+            total?: number;
+        };
         "handlers.logProblemRequest": {
             attempts?: number;
             categories?: string[];
             difficulty?: string;
             looked_at_solution?: boolean;
             name?: string;
-            time_taken_mins?: number;
-            /** "none" | "brute_force" | "optimal" */
+            /**
+             * @description SolutionType indicates how the user solved the problem.
+             *     Accepted values: "none" (default), "brute_force", "optimal".
+             *     "brute_force" applies a -15 point penalty; the others carry no penalty.
+             */
             solution_type?: string;
-        };
-        "handlers.leetCodeProblemSuggestion": {
-            lc_id?: number;
-            title?: string;
-            slug?: string;
-            difficulty?: string;
-            tags?: string[];
+            time_taken_mins?: number;
         };
         "handlers.problemResponse": {
             attempts?: number;
@@ -428,7 +300,6 @@ export interface components {
             looked_at_solution?: boolean;
             name?: string;
             score?: number;
-            /** "none" | "brute_force" | "optimal" */
             solution_type?: string;
             solved_at?: string;
             time_taken_mins?: number;

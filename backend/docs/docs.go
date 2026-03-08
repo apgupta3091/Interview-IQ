@@ -15,110 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "Authenticates a user and returns a JWT token valid for 7 days.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Login with existing credentials",
-                "parameters": [
-                    {
-                        "description": "Login credentials",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.authRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "JWT token and email",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.authResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.errorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid email or password",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.errorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/register": {
-            "post": {
-                "description": "Creates a new user account with email and password. Returns a JWT token on success.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Register a new user",
-                "parameters": [
-                    {
-                        "description": "Registration credentials (password min 8 chars)",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.authRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "JWT token and email",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.authResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid input or password too short",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.errorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Email already registered",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.errorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/categories/stats": {
             "get": {
                 "security": [
@@ -209,22 +105,83 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all problems logged by the authenticated user, ordered newest first. Each problem includes its raw score and live decayed score computed at request time.",
+                "description": "Returns a paginated, filtered list of problems for the authenticated user, always sorted by created_at DESC. Supports name search, date range, category/difficulty/score filters, and offset-based pagination.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "problems"
                 ],
-                "summary": "List all logged problems",
+                "summary": "List logged problems with filtering and pagination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name search (case-insensitive partial match)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Category filter (repeatable; matches any)",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Difficulty filter (repeatable: easy|medium|hard)",
+                        "name": "difficulty",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Minimum raw score (inclusive)",
+                        "name": "score_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum raw score (inclusive)",
+                        "name": "score_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Solved-on start date YYYY-MM-DD (inclusive)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Solved-on end date YYYY-MM-DD (inclusive)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Record offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "List of problems with decayed scores",
+                        "description": "Paginated problem list",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/handlers.problemResponse"
-                            }
+                            "$ref": "#/definitions/handlers.listProblemsResponse"
                         }
                     },
                     "401": {
@@ -299,28 +256,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handlers.authRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.authResponse": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
         "handlers.categoryStatsResponse": {
             "type": "object",
             "properties": {
@@ -343,14 +278,37 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.listProblemsResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "problems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.problemResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "handlers.logProblemRequest": {
             "type": "object",
             "properties": {
                 "attempts": {
                     "type": "integer"
                 },
-                "category": {
-                    "type": "string"
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "difficulty": {
                     "type": "string"
@@ -359,6 +317,10 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "solution_type": {
+                    "description": "SolutionType indicates how the user solved the problem.\nAccepted values: \"none\" (default), \"brute_force\", \"optimal\".\n\"brute_force\" applies a -15 point penalty; the others carry no penalty.",
                     "type": "string"
                 },
                 "time_taken_mins": {
@@ -372,8 +334,11 @@ const docTemplate = `{
                 "attempts": {
                     "type": "integer"
                 },
-                "category": {
-                    "type": "string"
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "created_at": {
                     "type": "string"
@@ -395,6 +360,9 @@ const docTemplate = `{
                 },
                 "score": {
                     "type": "integer"
+                },
+                "solution_type": {
+                    "type": "string"
                 },
                 "solved_at": {
                     "type": "string"
@@ -424,7 +392,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "Enter your JWT token as: Bearer \u003ctoken\u003e",
+            "description": "Enter your Clerk session token as: Bearer \u003ctoken\u003e",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
