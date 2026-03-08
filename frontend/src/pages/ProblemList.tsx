@@ -5,6 +5,7 @@ import axios from 'axios'
 import { Plus, FileX, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { api } from '@/lib/api'
 import type { Problem, ApiError, ProblemListResponse } from '@/types/api'
 import ProblemFilters, {
@@ -295,9 +296,18 @@ export default function ProblemList() {
                     <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.score ?? 0)}`}>
                       {p.score}
                       {(p.original_score ?? 0) - (p.score ?? 0) > 0 && (
-                        <span className="ml-1.5 text-xs text-muted-foreground font-normal">
-                          −{(p.original_score ?? 0) - (p.score ?? 0)}
-                        </span>
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="ml-1.5 text-xs text-red-500 font-normal cursor-default">
+                                −{(p.original_score ?? 0) - (p.score ?? 0)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-xs">Score decayed from {p.original_score}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
