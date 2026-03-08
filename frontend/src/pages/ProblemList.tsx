@@ -310,7 +310,7 @@ export default function ProblemList() {
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className={`font-mono text-sm font-medium cursor-default ${scoreColor(p.score ?? 0)}`}>
+                              <span className={`font-mono text-sm font-medium cursor-help underline decoration-dotted underline-offset-2 ${scoreColor(p.score ?? 0)}`}>
                                 {p.score}
                               </span>
                             </TooltipTrigger>
