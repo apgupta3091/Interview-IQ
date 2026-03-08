@@ -28,6 +28,7 @@ export type ProblemRec = {
   name: string;
   difficulty: string;
   description: string;
+  reason: string;
 };
 
 export type CategoryRec = {

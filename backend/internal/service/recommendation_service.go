@@ -29,6 +29,8 @@ type ProblemRec struct {
 	Name        string `json:"name"`
 	Difficulty  string `json:"difficulty"`
 	Description string `json:"description"`
+	// Reason explains why this problem was chosen based on the user's history and scores.
+	Reason string `json:"reason"`
 }
 
 // CategoryRec groups AI recommendations for one category.
@@ -273,7 +275,8 @@ func buildRecommendationPrompt(
 	sb.WriteString("  - Never recommend a problem the user has already attempted with a decayed score above 80.\n")
 	sb.WriteString(fmt.Sprintf("  - Recommend exactly %d problems per category.\n", limit))
 	sb.WriteString("  - Each focus_note should be 2–3 sentences explaining what patterns to practise.\n")
-	sb.WriteString("  - Each problem description should be 1 sentence explaining its value.\n\n")
+	sb.WriteString("  - Each problem description should be 1 sentence explaining its value.\n")
+	sb.WriteString("  - Each problem reason should be 1–2 sentences referencing the user's specific history or score — e.g. 'You attempted Two Sum with a decayed score of 35, so this builds directly on that gap.' If the user has no history for this category, say so briefly.\n\n")
 	sb.WriteString("Respond with ONLY this JSON structure (no markdown, no code fences):\n")
 	sb.WriteString("{\n")
 	sb.WriteString("  \"categories\": [\n")
@@ -284,7 +287,8 @@ func buildRecommendationPrompt(
 	sb.WriteString("        {\n")
 	sb.WriteString("          \"name\": \"Exact LeetCode problem title\",\n")
 	sb.WriteString("          \"difficulty\": \"easy or medium or hard\",\n")
-	sb.WriteString("          \"description\": \"...\"\n")
+	sb.WriteString("          \"description\": \"...\",\n")
+	sb.WriteString("          \"reason\": \"...\"\n")
 	sb.WriteString("        }\n")
 	sb.WriteString("      ]\n")
 	sb.WriteString("    }\n")

@@ -47,6 +47,11 @@ function CategoryCard({ rec }: { rec: CategoryRec }) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">{p.description}</p>
+            {p.reason && (
+              <p className="text-xs text-muted-foreground/70 leading-relaxed border-t border-border/40 pt-1.5 mt-1">
+                <span className="font-medium text-muted-foreground">Why: </span>{p.reason}
+              </p>
+            )}
           </div>
         ))}
       </CardContent>
@@ -128,7 +133,7 @@ export default function Recommendations() {
   const hasFilters = !!draftCategory || draftLimit !== '3'
 
   return (
-    <div className="space-y-6 animate-fade-up max-w-2xl mx-auto">
+    <div className="space-y-6 animate-fade-up">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -141,7 +146,7 @@ export default function Recommendations() {
         <div className="flex flex-wrap items-center gap-2">
           <Select value={draftCategory} onValueChange={setDraftCategory}>
             <SelectTrigger className="h-8 text-xs w-40">
-              <SelectValue placeholder="All categories" />
+              <SelectValue placeholder="Select a category" />
             </SelectTrigger>
             <SelectContent>
               {CATEGORIES.map((c) => (
@@ -166,7 +171,7 @@ export default function Recommendations() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" className="h-8 text-xs gap-1" onClick={handleGet} disabled={loading}>
+          <Button size="sm" className="h-8 text-xs gap-1" onClick={handleGet} disabled={loading || !draftCategory}>
             {loading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
@@ -208,7 +213,7 @@ export default function Recommendations() {
 
       {!hasFetched && (
         <div className="text-center py-16 text-sm text-muted-foreground">
-          Select categories and click <span className="font-medium text-foreground">Get Recommendations</span> to see AI-powered suggestions.
+          Select a category and click <span className="font-medium text-foreground">Get Recommendations</span> to see AI-powered suggestions.
         </div>
       )}
     </div>
