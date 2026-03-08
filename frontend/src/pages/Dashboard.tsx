@@ -55,7 +55,7 @@ export default function Dashboard() {
     setAiError(null)
     setAiLoading(true)
     api.recommendations
-      .get({ categories: [weakest.category], limit: 3 })
+      .get({ category: weakest.category, limit: 3 })
       .then((result) => {
         setAiRec(result.categories[0] ?? null)
       })

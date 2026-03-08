@@ -95,7 +95,7 @@ export default function LogProblem() {
     if (s.difficulty) setDifficulty(s.difficulty)
     if (s.tags && s.tags.length > 0) {
       // Only pre-select tags that are in our known category list
-      const valid = s.tags.filter((t) => CATEGORIES.includes(t))
+      const valid = s.tags.filter((t) => (CATEGORIES as readonly string[]).includes(t))
       if (valid.length > 0) setSelectedCategories(valid)
     }
     setShowSuggestions(false)
