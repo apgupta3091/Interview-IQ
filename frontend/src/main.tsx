@@ -10,6 +10,7 @@ import Register from '@/pages/Register'
 import LogProblem from '@/pages/LogProblem'
 import ProblemList from '@/pages/ProblemList'
 import Dashboard from '@/pages/Dashboard'
+import Recommendations from '@/pages/Recommendations'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -27,6 +28,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/problems" element={<ProblemList />} />
               <Route path="/problems/new" element={<LogProblem />} />
+              <Route path="/recommendations" element={<Recommendations />} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>

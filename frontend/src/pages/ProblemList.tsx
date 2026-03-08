@@ -111,9 +111,32 @@ export default function ProblemList() {
       })
   }, [applied, offset])
 
-  // Apply copies draft → applied and resets to page 1.
-  const applyFilters = () => {
-    setApplied({ ...draft })
+  // Instant-apply handlers: update both draft and applied immediately.
+  const handleNameSearch = (v: string) => {
+    setDraft((d) => ({ ...d, nameSearch: v }))
+    setApplied((a) => ({ ...a, nameSearch: v }))
+    setOffset(0)
+  }
+  const handleCategoriesChange = (v: string[]) => {
+    setDraft((d) => ({ ...d, categories: v }))
+    setApplied((a) => ({ ...a, categories: v }))
+    setOffset(0)
+  }
+  const handleDifficultiesChange = (v: string[]) => {
+    setDraft((d) => ({ ...d, difficulties: v }))
+    setApplied((a) => ({ ...a, difficulties: v }))
+    setOffset(0)
+  }
+
+  const handleApplyDateRange = (from: string, to: string) => {
+    setDraft((d) => ({ ...d, dateFrom: from, dateTo: to }))
+    setApplied((a) => ({ ...a, dateFrom: from, dateTo: to }))
+    setOffset(0)
+  }
+
+  const handleApplyScoreRange = (min: string, max: string) => {
+    setDraft((d) => ({ ...d, scoreMin: min, scoreMax: max }))
+    setApplied((a) => ({ ...a, scoreMin: min, scoreMax: max }))
     setOffset(0)
   }
 
@@ -153,15 +176,14 @@ export default function ProblemList() {
 
       {/* Filters */}
       <ProblemFilters
-        nameSearch={draft.nameSearch}           onNameSearch={(v) => setDraft((d) => ({ ...d, nameSearch: v }))}
-        dateFrom={draft.dateFrom}               onDateFrom={(v) => setDraft((d) => ({ ...d, dateFrom: v }))}
-        dateTo={draft.dateTo}                   onDateTo={(v) => setDraft((d) => ({ ...d, dateTo: v }))}
-        selectedCategories={draft.categories}   onCategoriesChange={(v) => setDraft((d) => ({ ...d, categories: v }))}
-        selectedDifficulties={draft.difficulties} onDifficultiesChange={(v) => setDraft((d) => ({ ...d, difficulties: v }))}
-        scoreMin={draft.scoreMin}               onScoreMin={(v) => setDraft((d) => ({ ...d, scoreMin: v }))}
-        scoreMax={draft.scoreMax}               onScoreMax={(v) => setDraft((d) => ({ ...d, scoreMax: v }))}
+        nameSearch={draft.nameSearch}             onNameSearch={handleNameSearch}
+        dateFrom={applied.dateFrom}               dateTo={applied.dateTo}
+        onApplyDateRange={handleApplyDateRange}
+        selectedCategories={draft.categories}     onCategoriesChange={handleCategoriesChange}
+        selectedDifficulties={draft.difficulties} onDifficultiesChange={handleDifficultiesChange}
+        scoreMin={applied.scoreMin}               scoreMax={applied.scoreMax}
+        onApplyScoreRange={handleApplyScoreRange}
         hasFilters={hasDraftOrActive}
-        onApply={applyFilters}
         onClear={clearFilters}
       />
 

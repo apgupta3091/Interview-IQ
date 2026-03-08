@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, PlusCircle, LogOut, Sun, Moon, Code2 } from 'lucide-react'
+import { LayoutDashboard, ListChecks, PlusCircle, LogOut, Sparkles, Sun, Moon, Code2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useUser, useClerk } from '@clerk/react'
 import {
@@ -15,9 +15,10 @@ import {
 } from '@/components/ui/sidebar'
 
 const NAV_ITEMS = [
-  { to: '/dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
-  { to: '/problems',     label: 'Problems',    icon: ListChecks },
-  { to: '/problems/new', label: 'Log Problem', icon: PlusCircle },
+  { to: '/dashboard',        label: 'Dashboard',       icon: LayoutDashboard },
+  { to: '/problems',         label: 'Problems',        icon: ListChecks },
+  { to: '/problems/new',     label: 'Log Problem',     icon: PlusCircle },
+  { to: '/recommendations',  label: 'Recommendations', icon: Sparkles },
 ]
 
 export default function AppSidebar() {

@@ -7,12 +7,7 @@ import {
   Tooltip,
 } from 'recharts'
 import type { CategoryStats } from '@/types/api'
-
-const ALL_CATEGORIES = [
-  'array', 'string', 'hash-map', 'two-pointers', 'sliding-window',
-  'binary-search', 'stack', 'queue', 'linked-list', 'tree', 'graph',
-  'heap', 'dp', 'backtracking', 'greedy', 'math', 'other',
-]
+import { CATEGORIES as ALL_CATEGORIES } from '@/lib/constants'
 
 type Props = { stats: CategoryStats[] }
 

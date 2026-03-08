@@ -1,9 +1,11 @@
 export { problems } from './problems'
 export { categories } from './categories'
 export { leetcodeProblems } from './leetcode'
+export { recommendations } from './recommendations'
 
 import { problems } from './problems'
 import { categories } from './categories'
 import { leetcodeProblems } from './leetcode'
+import { recommendations } from './recommendations'
 
-export const api = { problems, categories, leetcodeProblems }
+export const api = { problems, categories, leetcodeProblems, recommendations }

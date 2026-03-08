@@ -54,12 +54,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   )
 }
 
-const ALL_CATEGORIES = [
-  'array', 'string', 'hash-map', 'two-pointers', 'sliding-window',
-  'binary-search', 'stack', 'queue', 'linked-list', 'tree', 'trie',
-  'heap', 'graph', 'advanced-graphs', 'dp', 'dp-2d', 'backtracking',
-  'greedy', 'intervals', 'math', 'bit-manipulation', 'other',
-]
+import { CATEGORIES as ALL_CATEGORIES } from '@/lib/constants'
 
 export default function CategoryRadarChart({ stats }: Props) {
   const statsMap = new Map(stats.map((s) => [s.category, Math.round(s.strength ?? 0)]))

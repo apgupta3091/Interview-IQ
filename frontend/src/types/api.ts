@@ -21,3 +21,29 @@ export type LeetCodeProblemSuggestion = {
   difficulty: string;
   tags: string[];
 };
+
+// --- Recommendations (hand-written until Swagger annotations are added) ---
+
+export type ProblemRec = {
+  name: string;
+  difficulty: string;
+  description: string;
+};
+
+export type CategoryRec = {
+  category: string;
+  strength: number;
+  focus_note: string;
+  problems: ProblemRec[];
+};
+
+export type RecommendationResult = {
+  categories: CategoryRec[];
+};
+
+export type RecommendationParams = {
+  categories?: string[];
+  from?: string;
+  to?: string;
+  limit?: number;
+};
