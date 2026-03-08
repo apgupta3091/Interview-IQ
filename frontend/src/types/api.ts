@@ -13,4 +13,11 @@ export type ProblemListResponse       = Schemas['handlers.listProblemsResponse']
 export type CategoryStats             = Schemas['handlers.categoryStatsResponse'];
 export type WeakestResult             = Schemas['handlers.weakestResponse'];
 export type ApiError                  = Schemas['handlers.errorResponse'];
-export type LeetCodeProblemSuggestion = Schemas['handlers.leetCodeProblemSuggestion'];
+// Manually defined — leetCodeProblemSuggestion is unexported in Go and not in the generated schema
+export type LeetCodeProblemSuggestion = {
+  lc_id: number;
+  title: string;
+  slug: string;
+  difficulty: string;
+  tags: string[];
+};

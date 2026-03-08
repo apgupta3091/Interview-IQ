@@ -54,7 +54,7 @@ export default function CategoryBarChart({ stats }: Props) {
           <LabelList
             dataKey="strength"
             position="right"
-            formatter={(v: number) => `${v}%`}
+            formatter={(v: string | number) => `${v}%`}
             style={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
           />
         </Bar>
