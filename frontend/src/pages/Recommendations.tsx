@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MultiSelect } from '@/components/ProblemFilters'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CATEGORIES } from '@/lib/constants'
 import { api } from '@/lib/api'
 import type { ApiError, CategoryRec, RecommendationParams } from '@/types/api'
@@ -86,9 +86,7 @@ function LoadingSkeleton() {
 
 export default function Recommendations() {
   // Draft form state (not yet applied)
-  const [draftCategories, setDraftCategories] = useState<string[]>([])
-  const [draftFrom, setDraftFrom] = useState('')
-  const [draftTo, setDraftTo] = useState('')
+  const [draftCategory, setDraftCategory] = useState('')
   const [draftLimit, setDraftLimit] = useState('3')
 
   // Results state
@@ -100,9 +98,7 @@ export default function Recommendations() {
     const limit = Math.min(10, Math.max(1, parseInt(draftLimit, 10) || 3))
     const params: RecommendationParams = {
       limit,
-      ...(draftCategories.length > 0 && { categories: draftCategories }),
-      ...(draftFrom && { from: draftFrom }),
-      ...(draftTo && { to: draftTo }),
+      ...(draftCategory && { category: draftCategory }),
     }
 
     setLoading(true)
@@ -123,16 +119,13 @@ export default function Recommendations() {
   }
 
   function handleClear() {
-    setDraftCategories([])
-    setDraftFrom('')
-    setDraftTo('')
+    setDraftCategory('')
     setDraftLimit('3')
     setResults(null)
     setHasFetched(false)
   }
 
-  const hasFilters =
-    draftCategories.length > 0 || !!draftFrom || !!draftTo || draftLimit !== '3'
+  const hasFilters = !!draftCategory || draftLimit !== '3'
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -146,31 +139,18 @@ export default function Recommendations() {
       {/* Form */}
       <div className="rounded-lg border border-border/60 p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <MultiSelect
-            label="Categories"
-            options={CATEGORIES}
-            selected={draftCategories}
-            onChange={setDraftCategories}
-          />
-
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">From</span>
-            <Input
-              type="date"
-              value={draftFrom}
-              onChange={(e) => setDraftFrom(e.target.value)}
-              className="h-8 text-xs w-36"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">To</span>
-            <Input
-              type="date"
-              value={draftTo}
-              onChange={(e) => setDraftTo(e.target.value)}
-              className="h-8 text-xs w-36"
-            />
-          </div>
+          <Select value={draftCategory} onValueChange={setDraftCategory}>
+            <SelectTrigger className="h-8 text-xs w-40">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c} className="text-xs capitalize">
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <div className="flex items-center gap-1">
             <span className="text-xs text-muted-foreground">Per category</span>

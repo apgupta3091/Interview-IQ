@@ -42,8 +42,6 @@ export type RecommendationResult = {
 };
 
 export type RecommendationParams = {
-  categories?: string[];
-  from?: string;
-  to?: string;
+  category?: string;
   limit?: number;
 };
