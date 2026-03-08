@@ -14,9 +14,9 @@ const (
 	// less severe than peeking but still acknowledges the gap to optimal
 	minScore = 5 // floor — logging any problem is worth something
 
-	decayGraceDays  = 3    // no decay within the first 3 days
-	decayPerDay     = 2.0  // points lost per day after grace period
-	decayFloorRatio = 0.30 // score never drops below 30% of original
+	decayGraceDays  = 7    // no decay within the first 7 days
+	decayPerDay     = 1.0  // points lost per day after grace period
+	decayFloorRatio = 0.40 // score never drops below 40% of original
 )
 
 // ComputeScore calculates the raw score for a problem attempt.
@@ -51,13 +51,13 @@ func ComputeScore(attempts int, lookedAtSolution bool, solutionType string) int 
 // ApplyDecay reduces a score based on how many days have passed since it was solved.
 //
 // Model:
-//   - Days 0–3:  no decay (grace period, pattern is still fresh)
-//   - Days 4+:   linear decay of 2 points per day
-//   - Floor:     score never drops below 30% of the original (you don't fully forget patterns)
+//   - Days 0–7:  no decay (grace period, pattern is still fresh)
+//   - Days 8+:   linear decay of 1 point per day
+//   - Floor:     score never drops below 40% of the original (you don't fully forget patterns)
 //
 // Example for a score of 100:
 //
-//	Day 3 → 100 | Day 10 → 86 | Day 21 → 64 | Day 30 → 46 (floors at 30)
+//	Day 7 → 100 | Day 14 → 93 | Day 30 → 77 | Day 60 → 47 (floors at 40)
 func ApplyDecay(score int, solvedAt time.Time) float64 {
 	daysSince := time.Since(solvedAt).Hours() / 24
 	if daysSince <= decayGraceDays {

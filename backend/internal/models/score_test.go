@@ -53,27 +53,27 @@ func TestApplyDecay(t *testing.T) {
 		t.Errorf("day 0: expected 100.0, got %f", got)
 	}
 
-	// day 3 — still in grace period
-	got = ApplyDecay(score, time.Now().Add(-3*24*time.Hour))
+	// day 7 — still in grace period
+	got = ApplyDecay(score, time.Now().Add(-7*24*time.Hour))
 	if got != 100.0 {
-		t.Errorf("day 3: expected 100.0 (grace period), got %f", got)
+		t.Errorf("day 7: expected 100.0 (grace period), got %f", got)
 	}
 
-	// day 10 — 7 days of decay after grace: 100 - (7 * 2) = 86
-	got = ApplyDecay(score, time.Now().Add(-10*24*time.Hour))
-	if got < 85.0 || got > 87.0 {
-		t.Errorf("day 10: expected ~86, got %f", got)
+	// day 14 — 7 days of decay after grace: 100 - (7 * 1) = 93
+	got = ApplyDecay(score, time.Now().Add(-14*24*time.Hour))
+	if got < 92.0 || got > 94.0 {
+		t.Errorf("day 14: expected ~93, got %f", got)
 	}
 
-	// day 21 — 18 days of decay: 100 - (18 * 2) = 64
-	got = ApplyDecay(score, time.Now().Add(-21*24*time.Hour))
-	if got < 63.0 || got > 65.0 {
-		t.Errorf("day 21: expected ~64, got %f", got)
+	// day 30 — 23 days of decay: 100 - (23 * 1) = 77
+	got = ApplyDecay(score, time.Now().Add(-30*24*time.Hour))
+	if got < 76.0 || got > 78.0 {
+		t.Errorf("day 30: expected ~77, got %f", got)
 	}
 
-	// day 60 — would be 100 - (57*2) = -14, but floors at 30
-	got = ApplyDecay(score, time.Now().Add(-60*24*time.Hour))
-	if got != 30.0 {
-		t.Errorf("day 60: expected 30.0 (floor), got %f", got)
+	// day 80 — would be 100 - (73*1) = 27, but floors at 40
+	got = ApplyDecay(score, time.Now().Add(-80*24*time.Hour))
+	if got != 40.0 {
+		t.Errorf("day 80: expected 40.0 (floor), got %f", got)
 	}
 }
