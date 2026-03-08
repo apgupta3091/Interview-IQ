@@ -169,6 +169,7 @@ export default function LogProblem() {
                 placeholder="e.g. Two Sum"
                 required
                 autoComplete="off"
+                maxLength={200}
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
