@@ -198,7 +198,7 @@ export default function Recommendations() {
       {loading && <LoadingSkeleton />}
 
       {!loading && hasFetched && results && results.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {results.map((rec) => (
             <CategoryCard key={rec.category} rec={rec} />
           ))}

@@ -113,27 +113,50 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 		return RecommendationResult{}, ErrNoProblems
 	}
 
-	// 3. Fetch the user's practice history so the AI can avoid over-recommending mastered problems.
+	// 3. Fetch the user's practice history filtered to only the target categories.
+	// This keeps the AI prompt focused and avoids leaking irrelevant history.
 	listResult, err := s.problems.ListFiltered(ctx, userID, ListProblemsParams{
-		DateFrom: params.DateFrom,
-		DateTo:   params.DateTo,
-		Limit:    1000, // realistic per-user volume is well below this cap
+		Categories: targetCategories,
+		DateFrom:   params.DateFrom,
+		DateTo:     params.DateTo,
+		Limit:      1000, // realistic per-user volume is well below this cap
 	})
 	if err != nil {
 		return RecommendationResult{}, fmt.Errorf("recommendation service: list problems: %w", err)
 	}
 
-	// 4. Build a structured prompt and call OpenAI.
-	prompt := buildRecommendationPrompt(targetCategories, statsByCategory, listResult.Problems, params.Limit)
+	// 4. Build a set of ALL attempted problem names for post-filtering.
+	// Normalise to lowercase for case-insensitive matching.
+	// All previously attempted problems are excluded so the user only sees fresh ones.
+	attemptedNames := make(map[string]struct{}, len(listResult.Problems))
+	for _, p := range listResult.Problems {
+		attemptedNames[strings.ToLower(p.Name)] = struct{}{}
+	}
+
+	// 5. Build a structured prompt and call OpenAI.
+	prompt := buildRecommendationPrompt(targetCategories, statsByCategory, listResult.Problems, attemptedNames, params.Limit)
 	rawJSON, err := s.callOpenAI(ctx, prompt)
 	if err != nil {
 		return RecommendationResult{}, fmt.Errorf("recommendation service: %w", err)
 	}
 
-	// 5. Parse the AI JSON response into our typed struct.
+	// 6. Parse the AI JSON response into our typed struct.
 	var result RecommendationResult
 	if err := json.Unmarshal([]byte(rawJSON), &result); err != nil {
 		return RecommendationResult{}, fmt.Errorf("recommendation service: parse AI response: %w", err)
+	}
+
+	// 7. Post-filter: remove any AI-recommended problem that the user has already
+	// mastered (decayed score ≥ 75). The AI prompt instructs the same rule but
+	// LLMs are not perfectly reliable, so we enforce it deterministically here.
+	for i, catRec := range result.Categories {
+		filtered := catRec.Problems[:0]
+		for _, p := range catRec.Problems {
+			if _, mastered := attemptedNames[strings.ToLower(p.Name)]; !mastered {
+				filtered = append(filtered, p)
+			}
+		}
+		result.Categories[i].Problems = filtered
 	}
 
 	// Back-fill strength from real data — the AI should not be trusted for exact numbers.
@@ -242,10 +265,13 @@ func (s *recommendationService) callOpenAI(ctx context.Context, userPrompt strin
 }
 
 // buildRecommendationPrompt constructs the structured prompt sent to the AI.
+// attemptedNames is a set of ALL lowercase problem names the user has ever attempted;
+// the AI is instructed to skip them all and they are post-filtered in GetRecommendations.
 func buildRecommendationPrompt(
 	categories []string,
 	statsByCategory map[string]float64,
 	problems []models.Problem,
+	attemptedNames map[string]struct{},
 	limit int,
 ) string {
 	var sb strings.Builder
@@ -261,22 +287,47 @@ func buildRecommendationPrompt(
 		sb.WriteString(fmt.Sprintf("  - %s: %.1f strength\n", cat, statsByCategory[cat]))
 	}
 
-	if len(problems) > 0 {
-		sb.WriteString("\nUser's practice history (problem name → decayed score):\n")
-		for _, p := range problems {
-			sb.WriteString(fmt.Sprintf("  - %s → %d\n", p.Name, int(p.DecayedScore)))
+	// Split practice history into mastered vs. still-needs-work so the AI has
+	// clear context on what to skip and what gaps remain.
+	var mastered, inProgress []models.Problem
+	for _, p := range problems {
+		if p.Score >= 75 {
+			mastered = append(mastered, p)
+		} else {
+			inProgress = append(inProgress, p)
 		}
+	}
+
+	// Build a combined "already attempted" list for the prompt, regardless of score.
+	// This gives the AI full visibility into what the user has done.
+	if len(mastered) > 0 {
+		sb.WriteString("\nMastered problems — NEVER recommend any of these (score ≥ 75):\n")
+		for _, p := range mastered {
+			sb.WriteString(fmt.Sprintf("  - %s (score: %d)\n", p.Name, p.Score))
+		}
+	}
+
+	if len(inProgress) > 0 {
+		sb.WriteString("\nAlready attempted but not yet mastered (score < 75) — DO NOT recommend these either; the user needs NEW problems to discover fresh patterns:\n")
+		for _, p := range inProgress {
+			sb.WriteString(fmt.Sprintf("  - %s (score: %d)\n", p.Name, p.Score))
+		}
+	}
+
+	if len(mastered) == 0 && len(inProgress) == 0 {
+		sb.WriteString("\nThe user has no practice history in this category yet — recommend beginner-to-intermediate problems.\n")
 	}
 
 	sb.WriteString("\n")
 	sb.WriteString("Rules:\n")
 	sb.WriteString("  - Only include categories from the list above — no extras.\n")
-	sb.WriteString("  - Prefer problems the user hasn't attempted yet.\n")
-	sb.WriteString("  - Never recommend a problem the user has already attempted with a decayed score above 80.\n")
+	sb.WriteString("  - NEVER recommend any problem listed in either section above (mastered or already attempted).\n")
+	sb.WriteString("  - ALL recommendations must be problems the user has NOT yet attempted.\n")
+	sb.WriteString("  - Use the user's attempted problems and their scores as context to understand their skill level and gaps, but recommend only fresh, unattempted problems.\n")
 	sb.WriteString(fmt.Sprintf("  - Recommend exactly %d problems per category.\n", limit))
 	sb.WriteString("  - Each focus_note should be 2–3 sentences explaining what patterns to practise.\n")
 	sb.WriteString("  - Each problem description should be 1 sentence explaining its value.\n")
-	sb.WriteString("  - Each problem reason should be 1–2 sentences referencing the user's specific history or score — e.g. 'You attempted Two Sum with a decayed score of 35, so this builds directly on that gap.' If the user has no history for this category, say so briefly.\n\n")
+	sb.WriteString("  - Each problem reason should be 1–2 sentences explaining why this NEW problem is the right next step given the user's history and weak areas. Reference their existing scores for context.\n\n")
 	sb.WriteString("Respond with ONLY this JSON structure (no markdown, no code fences):\n")
 	sb.WriteString("{\n")
 	sb.WriteString("  \"categories\": [\n")
