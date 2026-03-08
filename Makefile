@@ -1,4 +1,4 @@
-.PHONY: help dev db-up db-down db-reset backend test test-v lint tidy
+.PHONY: help dev db-up db-down db-reset backend seed-dev test test-v lint tidy
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  db-down    Stop Postgres"
 	@echo "  db-reset   Wipe the Postgres volume and restart fresh"
 	@echo "  backend    Run the backend server (DB must already be up)"
+	@echo "  seed-dev   Seed ~75 problem attempts for the dev user (idempotent)"
 	@echo "  test       Run all Go tests"
 	@echo "  test-v     Run all Go tests with verbose output"
 	@echo "  lint       Run go vet on all packages"
@@ -37,6 +38,11 @@ db-reset:
 
 backend:
 	cd backend && go run ./cmd/server
+
+# Seed ~75 realistic problem attempts for clerk_user_id = "dev_seed_user".
+# Idempotent: exits early if the user already has problems.
+seed-dev: db-up
+	cd backend && go run ./cmd/seed-dev
 
 test:
 	cd backend && go test ./...
