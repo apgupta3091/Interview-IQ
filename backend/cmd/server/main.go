@@ -60,11 +60,15 @@ func main() {
 	categoryRepo := repository.NewCategoryRepo(database)
 	lcRepo := repository.NewLeetCodeProblemRepo(database)
 
+	openaiKey := os.Getenv("OPENAI_API_KEY")
+
 	problemSvc := service.NewProblemService(problemRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
+	recSvc := service.NewRecommendationService(categorySvc, problemSvc, openaiKey)
 
 	problemHandler := &handlers.ProblemHandler{Service: problemSvc}
 	categoryHandler := &handlers.CategoryHandler{Service: categorySvc}
+	recHandler := &handlers.RecommendationHandler{Service: recSvc}
 	lcHandler := &handlers.LeetCodeHandler{Repo: lcRepo}
 
 	r := chi.NewRouter()
@@ -90,14 +94,18 @@ func main() {
 		// All API routes require a valid Clerk JWT.
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.ClerkAuthenticate(userRepo))
-			// Per-user rate limit: 60 req/min sustained, burst of 20.
+			// Per-user rate limit: 120 req/min sustained, burst of 40.
 			// Applied after auth so we limit by resolved internal user ID.
-			r.Use(middleware.RateLimitByUser(rate.Every(time.Second), 20))
+			// Higher burst is needed because the Dashboard fires ~4 parallel
+			// requests on load and the typeahead search fires on each debounced
+			// keystroke shortly after.
+			r.Use(middleware.RateLimitByUser(rate.Every(500*time.Millisecond), 40))
 			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
 			r.Get("/categories/stats", categoryHandler.GetStats)
 			r.Get("/categories/weakest", categoryHandler.GetWeakest)
 			r.Get("/leetcode-problems/search", lcHandler.Search)
+			r.Get("/recommendations", recHandler.GetRecommendations)
 		})
 	})
 

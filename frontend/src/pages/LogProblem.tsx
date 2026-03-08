@@ -15,13 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { ApiError, LeetCodeProblemSuggestion } from '@/types/api'
-
-const CATEGORIES = [
-  'array', 'string', 'hash-map', 'two-pointers', 'sliding-window',
-  'binary-search', 'stack', 'linked-list', 'tree', 'trie', 'heap',
-  'graph', 'advanced-graphs', 'dp', 'dp-2d', 'backtracking',
-  'greedy', 'intervals', 'math', 'bit-manipulation', 'queue', 'other',
-]
+import { CATEGORIES } from '@/lib/constants'
 
 const DIFFICULTIES = [
   { value: 'easy',   label: 'Easy',   color: 'text-emerald-500' },
@@ -79,7 +73,7 @@ export default function LogProblem() {
   const handleNameChange = useCallback((value: string) => {
     setName(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (value.trim().length < 2) {
+    if (value.trim().length < 3) {
       setSuggestions([])
       setShowSuggestions(false)
       return
@@ -92,7 +86,7 @@ export default function LogProblem() {
       } catch {
         // silently ignore search errors — user can still type freely
       }
-    }, 300)
+    }, 500)
   }, [])
 
   // When a suggestion is selected, auto-fill name, difficulty, and categories
