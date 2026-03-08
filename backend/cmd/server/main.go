@@ -83,9 +83,9 @@ func main() {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
-	// Global per-IP rate limit: 30 req/min sustained, burst of 10.
+	// Global per-IP rate limit: 60 req/min sustained, burst of 20.
 	// Applied before auth so unauthenticated abuse is stopped early.
-	r.Use(middleware.RateLimitByIP(rate.Every(2*time.Second), 10))
+	r.Use(middleware.RateLimitByIP(rate.Every(time.Second), 20))
 
 	r.Get("/health", healthHandler)
 	r.Get("/swagger/*", httpSwagger.WrapHandler)

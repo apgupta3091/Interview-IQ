@@ -57,7 +57,7 @@ function CategoryCard({ rec }: { rec: CategoryRec }) {
 function LoadingSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {[1, 2, 3].map((i) => (
+      {[1].map((i) => (
         <Card key={i} className="border-border/60">
           <CardHeader className="pb-3 space-y-2">
             <div className="flex items-center justify-between">
@@ -128,7 +128,7 @@ export default function Recommendations() {
   const hasFilters = !!draftCategory || draftLimit !== '3'
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="space-y-6 animate-fade-up max-w-2xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
         <p className="text-sm text-muted-foreground mt-1">

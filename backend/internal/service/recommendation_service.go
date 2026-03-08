@@ -151,10 +151,14 @@ func (s *recommendationService) callOpenAI(ctx context.Context, userPrompt strin
 		Role    string `json:"role"`
 		Content string `json:"content"`
 	}
+	type responseFormat struct {
+		Type string `json:"type"`
+	}
 	type request struct {
-		Model       string    `json:"model"`
-		Messages    []message `json:"messages"`
-		Temperature float64   `json:"temperature"`
+		Model          string         `json:"model"`
+		Messages       []message      `json:"messages"`
+		Temperature    float64        `json:"temperature"`
+		ResponseFormat responseFormat `json:"response_format"`
 	}
 	type response struct {
 		Choices []struct {
@@ -176,7 +180,8 @@ func (s *recommendationService) callOpenAI(ctx context.Context, userPrompt strin
 			},
 			{Role: "user", Content: userPrompt},
 		},
-		Temperature: 0.7,
+		Temperature:    0.7,
+		ResponseFormat: responseFormat{Type: "json_object"},
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -216,7 +221,22 @@ func (s *recommendationService) callOpenAI(ctx context.Context, userPrompt strin
 		return "", fmt.Errorf("callOpenAI: no choices in response")
 	}
 
-	return parsed.Choices[0].Message.Content, nil
+	// Strip markdown code fences if present — the model occasionally wraps JSON
+	// in ```json...``` even when instructed not to.
+	content := parsed.Choices[0].Message.Content
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "```") {
+		// Remove opening fence (```json or ```)
+		if idx := strings.Index(content, "\n"); idx != -1 {
+			content = content[idx+1:]
+		}
+		// Remove closing fence
+		if idx := strings.LastIndex(content, "```"); idx != -1 {
+			content = strings.TrimSpace(content[:idx])
+		}
+	}
+
+	return content, nil
 }
 
 // buildRecommendationPrompt constructs the structured prompt sent to the AI.
@@ -228,11 +248,15 @@ func buildRecommendationPrompt(
 ) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("Generate %d LeetCode problem recommendations per category for an interview prep student.\n\n", limit))
+	sb.WriteString(fmt.Sprintf("Generate %d LeetCode problem recommendations ONLY for the exact categories listed below. Do not add, substitute, or expand to other categories.\n\n", limit))
 
-	sb.WriteString("Category strength scores (0–100, higher = stronger mastery):\n")
+	if len(categories) == 1 {
+		sb.WriteString("You must return recommendations for exactly 1 category:\n")
+	} else {
+		sb.WriteString(fmt.Sprintf("You must return recommendations for exactly %d categories:\n", len(categories)))
+	}
 	for _, cat := range categories {
-		sb.WriteString(fmt.Sprintf("  - %s: %.1f\n", cat, statsByCategory[cat]))
+		sb.WriteString(fmt.Sprintf("  - %s: %.1f strength\n", cat, statsByCategory[cat]))
 	}
 
 	if len(problems) > 0 {
@@ -243,9 +267,10 @@ func buildRecommendationPrompt(
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("Rules:\n"))
+	sb.WriteString("Rules:\n")
+	sb.WriteString("  - Only include categories from the list above — no extras.\n")
 	sb.WriteString("  - Prefer problems the user hasn't attempted yet.\n")
-	sb.WriteString("  - If recommending an attempted problem, it must have a decayed score below 50.\n")
+	sb.WriteString("  - Never recommend a problem the user has already attempted with a decayed score above 80.\n")
 	sb.WriteString(fmt.Sprintf("  - Recommend exactly %d problems per category.\n", limit))
 	sb.WriteString("  - Each focus_note should be 2–3 sentences explaining what patterns to practise.\n")
 	sb.WriteString("  - Each problem description should be 1 sentence explaining its value.\n\n")

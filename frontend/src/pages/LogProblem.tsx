@@ -79,6 +79,7 @@ export default function LogProblem() {
       return
     }
     debounceRef.current = setTimeout(async () => {
+      // 600 ms debounce keeps typeahead responsive while reducing request volume
       try {
         const results = await api.leetcodeProblems.search(value.trim())
         setSuggestions(results ?? [])
@@ -86,7 +87,7 @@ export default function LogProblem() {
       } catch {
         // silently ignore search errors — user can still type freely
       }
-    }, 500)
+    }, 600)
   }, [])
 
   // When a suggestion is selected, auto-fill name, difficulty, and categories

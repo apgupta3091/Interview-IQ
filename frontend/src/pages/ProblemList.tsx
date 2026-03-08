@@ -7,7 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import type { Problem, ApiError, ProblemListResponse } from '@/types/api'
-import ProblemFilters from '@/components/ProblemFilters'
+import ProblemFilters, {
+  DATE_RANGE_OPTIONS,
+  SCORE_RANGE_OPTIONS,
+} from '@/components/ProblemFilters'
+import type { DateRangeValue, ScoreRangeValue } from '@/components/ProblemFilters'
 
 const PAGE_SIZE = 20
 
@@ -45,20 +49,32 @@ type FilterState = {
   nameSearch: string
   categories: string[]
   difficulties: string[]
-  scoreMin: string
-  scoreMax: string
-  dateFrom: string
-  dateTo: string
+  scoreRange: ScoreRangeValue
+  dateRange: DateRangeValue
 }
 
 const EMPTY_FILTERS: FilterState = {
   nameSearch: '', categories: [], difficulties: [],
-  scoreMin: '', scoreMax: '', dateFrom: '', dateTo: '',
+  scoreRange: '', dateRange: '',
 }
 
 function hasAnyFilter(f: FilterState) {
   return !!(f.nameSearch || f.categories.length || f.difficulties.length ||
-            f.scoreMin || f.scoreMax || f.dateFrom || f.dateTo)
+            f.scoreRange || f.dateRange)
+}
+
+/** Compute the ISO date string for the start of a date range preset. */
+function dateRangeToFrom(range: DateRangeValue): string | undefined {
+  if (!range) return undefined
+  const now = new Date()
+  const days: Record<string, number> = {
+    day: 1, week: 7, '2weeks': 14, month: 30, '3months': 90,
+  }
+  const d = days[range]
+  if (!d) return undefined
+  const from = new Date(now)
+  from.setDate(from.getDate() - d)
+  return from.toISOString().slice(0, 10)
 }
 
 // ---------------------------------------------------------------------------
@@ -80,14 +96,17 @@ export default function ProblemList() {
   useEffect(() => {
     const id = ++fetchIdRef.current
     setLoading(true)
+    const scoreOpt = applied.scoreRange
+      ? SCORE_RANGE_OPTIONS.find((o) => o.value === applied.scoreRange)
+      : undefined
     api.problems.listFiltered({
       q:          applied.nameSearch || undefined,
       category:   applied.categories.length  ? applied.categories  : undefined,
       difficulty: applied.difficulties.length ? applied.difficulties : undefined,
-      score_min:  applied.scoreMin !== '' ? Number(applied.scoreMin) : undefined,
-      score_max:  applied.scoreMax !== '' ? Number(applied.scoreMax) : undefined,
-      from:       applied.dateFrom || undefined,
-      to:         applied.dateTo   || undefined,
+      score_min:  scoreOpt ? scoreOpt.min : undefined,
+      score_max:  scoreOpt ? scoreOpt.max : undefined,
+      from:       dateRangeToFrom(applied.dateRange),
+      to:         undefined,
       limit:      PAGE_SIZE,
       offset,
     })
@@ -128,15 +147,15 @@ export default function ProblemList() {
     setOffset(0)
   }
 
-  const handleApplyDateRange = (from: string, to: string) => {
-    setDraft((d) => ({ ...d, dateFrom: from, dateTo: to }))
-    setApplied((a) => ({ ...a, dateFrom: from, dateTo: to }))
+  const handleDateRangeChange = (v: DateRangeValue) => {
+    setDraft((d) => ({ ...d, dateRange: v }))
+    setApplied((a) => ({ ...a, dateRange: v }))
     setOffset(0)
   }
 
-  const handleApplyScoreRange = (min: string, max: string) => {
-    setDraft((d) => ({ ...d, scoreMin: min, scoreMax: max }))
-    setApplied((a) => ({ ...a, scoreMin: min, scoreMax: max }))
+  const handleScoreRangeChange = (v: ScoreRangeValue) => {
+    setDraft((d) => ({ ...d, scoreRange: v }))
+    setApplied((a) => ({ ...a, scoreRange: v }))
     setOffset(0)
   }
 
@@ -177,12 +196,10 @@ export default function ProblemList() {
       {/* Filters */}
       <ProblemFilters
         nameSearch={draft.nameSearch}             onNameSearch={handleNameSearch}
-        dateFrom={applied.dateFrom}               dateTo={applied.dateTo}
-        onApplyDateRange={handleApplyDateRange}
+        dateRange={applied.dateRange}             onDateRangeChange={handleDateRangeChange}
         selectedCategories={draft.categories}     onCategoriesChange={handleCategoriesChange}
         selectedDifficulties={draft.difficulties} onDifficultiesChange={handleDifficultiesChange}
-        scoreMin={applied.scoreMin}               scoreMax={applied.scoreMax}
-        onApplyScoreRange={handleApplyScoreRange}
+        scoreRange={applied.scoreRange}           onScoreRangeChange={handleScoreRangeChange}
         hasFilters={hasDraftOrActive}
         onClear={clearFilters}
       />

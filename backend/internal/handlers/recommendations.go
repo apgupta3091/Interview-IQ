@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -69,6 +70,7 @@ func (h *RecommendationHandler) GetRecommendations(w http.ResponseWriter, r *htt
 			writeError(w, http.StatusNotFound, "no problems logged yet")
 			return
 		}
+		slog.ErrorContext(r.Context(), "recommendations failed", "user_id", userID, "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to get recommendations")
 		return
 	}
