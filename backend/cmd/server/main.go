@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -22,6 +23,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	clerk "github.com/clerk/clerk-sdk-go/v2"
+	"golang.org/x/time/rate"
 
 	_ "github.com/apgupta3091/interview-iq/docs"
 	"github.com/apgupta3091/interview-iq/internal/db"
@@ -77,6 +79,9 @@ func main() {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
+	// Global per-IP rate limit: 30 req/min sustained, burst of 10.
+	// Applied before auth so unauthenticated abuse is stopped early.
+	r.Use(middleware.RateLimitByIP(rate.Every(2*time.Second), 10))
 
 	r.Get("/health", healthHandler)
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
@@ -85,6 +90,9 @@ func main() {
 		// All API routes require a valid Clerk JWT.
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.ClerkAuthenticate(userRepo))
+			// Per-user rate limit: 60 req/min sustained, burst of 20.
+			// Applied after auth so we limit by resolved internal user ID.
+			r.Use(middleware.RateLimitByUser(rate.Every(time.Second), 20))
 			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
 			r.Get("/categories/stats", categoryHandler.GetStats)
