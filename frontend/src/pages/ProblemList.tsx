@@ -28,6 +28,18 @@ function scoreColor(score: number) {
   return 'text-red-500'
 }
 
+function timeSince(date: Date): string {
+  const days = Math.floor((Date.now() - date.getTime()) / 86_400_000)
+  if (days === 0) return 'today'
+  if (days === 1) return '1 day ago'
+  if (days < 30) return `${days} days ago`
+  const months = Math.floor(days / 30)
+  if (months === 1) return '1 month ago'
+  if (months < 12) return `${months} months ago`
+  const years = Math.floor(months / 12)
+  return years === 1 ? '1 year ago' : `${years} years ago`
+}
+
 // Within the current page (sorted newest-first), mark the first occurrence of
 // each problem name as "Latest" when duplicates exist on this page.
 function buildAttemptMeta(problems: Problem[]) {
@@ -293,21 +305,26 @@ export default function ProblemList() {
                       {p.solution_type === 'brute_force' && <span className="text-xs font-medium text-amber-500">Brute force</span>}
                       {(!p.solution_type || p.solution_type === 'none') && <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
-                    <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.score ?? 0)}`}>
-                      {p.score}
-                      {(p.original_score ?? 0) - (p.score ?? 0) > 0 && (
+                    <TableCell className="text-right">
+                      {(p.original_score ?? 0) - (p.score ?? 0) > 0 ? (
                         <TooltipProvider delayDuration={150}>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="ml-1.5 text-xs text-red-500 font-normal cursor-default">
-                                −{(p.original_score ?? 0) - (p.score ?? 0)}
+                              <span className={`font-mono text-sm font-medium cursor-default ${scoreColor(p.score ?? 0)}`}>
+                                {p.score}
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p className="text-xs">Score decayed from {p.original_score}</p>
+                            <TooltipContent side="top" className="font-mono text-xs space-y-0.5">
+                              <p>Original score: <span className="text-foreground">{p.original_score}</span></p>
+                              <p>Decay: <span className="text-red-500">−{(p.original_score ?? 0) - (p.score ?? 0)}</span></p>
+                              <p>Last solved: <span className="text-muted-foreground">{p.solved_at ? timeSince(new Date(p.solved_at)) : '—'}</span></p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      ) : (
+                        <span className={`font-mono text-sm font-medium ${scoreColor(p.score ?? 0)}`}>
+                          {p.score}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
