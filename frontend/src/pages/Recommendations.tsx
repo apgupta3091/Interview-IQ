@@ -61,7 +61,7 @@ function CategoryCard({ rec }: { rec: CategoryRec }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {[1].map((i) => (
         <Card key={i} className="border-border/60">
           <CardHeader className="pb-3 space-y-2">
