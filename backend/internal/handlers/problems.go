@@ -39,7 +39,7 @@ type problemResponse struct {
 	TimeTakenMins    int       `json:"time_taken_mins"`
 	SolutionType     string    `json:"solution_type"`
 	Score            int       `json:"score"`
-	DecayedScore     float64   `json:"decayed_score"`
+	OriginalScore    int       `json:"original_score"`
 	SolvedAt         time.Time `json:"solved_at"`
 	CreatedAt        time.Time `json:"created_at"`
 }
@@ -59,7 +59,7 @@ func toProblemResponse(p models.Problem) problemResponse {
 		TimeTakenMins:    p.TimeTakenMins,
 		SolutionType:     p.SolutionType,
 		Score:            p.Score,
-		DecayedScore:     p.DecayedScore,
+		OriginalScore:    p.OriginalScore,
 		SolvedAt:         p.SolvedAt,
 		CreatedAt:        p.CreatedAt,
 	}

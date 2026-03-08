@@ -10,11 +10,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
+	_ "time/tzdata" // embed IANA tz data so America/New_York works inside Docker
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -26,6 +29,7 @@ import (
 	"golang.org/x/time/rate"
 
 	_ "github.com/apgupta3091/interview-iq/docs"
+	"github.com/apgupta3091/interview-iq/internal/cron"
 	"github.com/apgupta3091/interview-iq/internal/db"
 	"github.com/apgupta3091/interview-iq/internal/handlers"
 	"github.com/apgupta3091/interview-iq/internal/middleware"
@@ -109,8 +113,30 @@ func main() {
 		})
 	})
 
+	// ctx is cancelled on SIGINT/SIGTERM, which stops the decay cron and the HTTP server.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// Start the nightly score-decay cron (10pm EST daily).
+	cron.RunDecayCron(ctx, problemRepo)
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
+	}
+
+	// Shut down gracefully when the signal context is cancelled.
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("server shutdown: %v", err)
+		}
+	}()
+
 	log.Printf("server starting on :%s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server failed: %v", err)
 	}
 }

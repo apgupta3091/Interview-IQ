@@ -3,12 +3,11 @@ package models
 import "time"
 
 type Problem struct {
-	ID, UserID, Score, Attempts, TimeTakenMins int
-	Name, Difficulty, SolutionType             string
-	Categories                                 []string
-	LookedAtSolution                           bool
-	DecayedScore                               float64
-	SolvedAt, CreatedAt                        time.Time
+	ID, UserID, Score, OriginalScore, Attempts, TimeTakenMins int
+	Name, Difficulty, SolutionType                            string
+	Categories                                                []string
+	LookedAtSolution                                          bool
+	SolvedAt, CreatedAt                                       time.Time
 }
 
 // LeetCodeProblem is a row from the leetcode_problems catalog table.

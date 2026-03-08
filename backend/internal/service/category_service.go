@@ -56,7 +56,8 @@ func (s *categoryService) GetStats(ctx context.Context, userID int) ([]models.Ca
 		if _, ok := buckets[rs.Category]; !ok {
 			buckets[rs.Category] = &acc{}
 		}
-		buckets[rs.Category].total += models.ApplyDecay(rs.Score, rs.SolvedAt)
+		// score in DB is already the decayed value (updated nightly by the decay cron)
+		buckets[rs.Category].total += float64(rs.Score)
 		buckets[rs.Category].count++
 	}
 

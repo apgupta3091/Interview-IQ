@@ -248,7 +248,6 @@ export default function ProblemList() {
                   <TableHead className="text-center font-medium">Peeked</TableHead>
                   <TableHead className="text-center font-medium">Solution</TableHead>
                   <TableHead className="text-right font-medium">Score</TableHead>
-                  <TableHead className="text-right font-medium">Decayed</TableHead>
                   <TableHead className="text-right font-medium">Solved</TableHead>
                 </TableRow>
               </TableHeader>
@@ -295,9 +294,11 @@ export default function ProblemList() {
                     </TableCell>
                     <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.score ?? 0)}`}>
                       {p.score}
-                    </TableCell>
-                    <TableCell className={`text-right font-mono text-sm font-medium ${scoreColor(p.decayed_score ?? 0)}`}>
-                      {Math.round(p.decayed_score ?? 0)}
+                      {(p.original_score ?? 0) - (p.score ?? 0) > 0 && (
+                        <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                          −{(p.original_score ?? 0) - (p.score ?? 0)}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
                       {p.solved_at ? new Date(p.solved_at).toLocaleDateString() : '—'}

@@ -294,11 +294,11 @@ export interface components {
             attempts?: number;
             categories?: string[];
             created_at?: string;
-            decayed_score?: number;
             difficulty?: string;
             id?: number;
             looked_at_solution?: boolean;
             name?: string;
+            original_score?: number;
             score?: number;
             solution_type?: string;
             solved_at?: string;

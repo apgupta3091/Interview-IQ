@@ -126,25 +126,17 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 		LookedAtSolution: req.LookedAtSolution,
 		SolutionType:     req.SolutionType,
 		Score:            score,
+		OriginalScore:    score, // new problems start with score == original_score (no decay yet)
 		SolvedAt:         solvedAt,
 	})
 	if err != nil {
 		return models.Problem{}, err
 	}
-
-	p.DecayedScore = models.ApplyDecay(p.Score, p.SolvedAt)
 	return p, nil
 }
 
 func (s *problemService) List(ctx context.Context, userID int) ([]models.Problem, error) {
-	problems, err := s.problems.ListByUser(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	for i, p := range problems {
-		problems[i].DecayedScore = models.ApplyDecay(p.Score, p.SolvedAt)
-	}
-	return problems, nil
+	return s.problems.ListByUser(ctx, userID)
 }
 
 func (s *problemService) ListFiltered(ctx context.Context, userID int, params ListProblemsParams) (ListResult, error) {
@@ -170,9 +162,6 @@ func (s *problemService) ListFiltered(ctx context.Context, userID int, params Li
 	})
 	if err != nil {
 		return ListResult{}, err
-	}
-	for i, p := range result.Problems {
-		result.Problems[i].DecayedScore = models.ApplyDecay(p.Score, p.SolvedAt)
 	}
 	return ListResult{Problems: result.Problems, Total: result.Total}, nil
 }

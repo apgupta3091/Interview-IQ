@@ -31,6 +31,10 @@ func (m *mockProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f 
 	return repository.ListProblemsResult{}, nil
 }
 
+func (m *mockProblemRepo) DecayAllProblems(_ context.Context, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
 func TestLog_EmptyName(t *testing.T) {
 	svc := NewProblemService(&mockProblemRepo{})
 	_, err := svc.Log(context.Background(), 1, LogProblemInput{
@@ -104,31 +108,33 @@ func TestLog_ScoreComputed(t *testing.T) {
 	}
 }
 
-func TestLog_DecayedScoreSet(t *testing.T) {
-	solvedAt := time.Now().Add(-10 * 24 * time.Hour)
+func TestLog_OriginalScoreMatchesScore(t *testing.T) {
+	// When a new problem is logged, Score and OriginalScore must be equal
+	// (no decay has occurred yet; the cron will update Score later).
+	var gotParams repository.InsertProblemParams
 	svc := NewProblemService(&mockProblemRepo{
 		insertFn: func(_ context.Context, p repository.InsertProblemParams) (models.Problem, error) {
-			return models.Problem{Score: 100, SolvedAt: solvedAt}, nil
+			gotParams = p
+			return models.Problem{Score: p.Score, OriginalScore: p.OriginalScore}, nil
 		},
 	})
-	p, err := svc.Log(context.Background(), 1, LogProblemInput{
+	_, err := svc.Log(context.Background(), 1, LogProblemInput{
 		Name: "Two Sum", Categories: []string{"array"}, Difficulty: "easy", Attempts: 1,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// After 10 days: 100 - (7 * 2) = 86; not full score
-	if p.DecayedScore >= 100 {
-		t.Errorf("expected decayed score < 100, got %f", p.DecayedScore)
+	if gotParams.Score != gotParams.OriginalScore {
+		t.Errorf("Score (%d) != OriginalScore (%d) on insert", gotParams.Score, gotParams.OriginalScore)
 	}
 }
 
-func TestList_AppliesDecay(t *testing.T) {
-	solvedAt := time.Now().Add(-10 * 24 * time.Hour)
+func TestList_ReturnsProblemsDirect(t *testing.T) {
+	// List now returns problems as-is from the repo; score is already decayed in the DB.
 	svc := NewProblemService(&mockProblemRepo{
 		listByUserFn: func(_ context.Context, _ int) ([]models.Problem, error) {
 			return []models.Problem{
-				{ID: 1, Score: 100, SolvedAt: solvedAt},
+				{ID: 1, Score: 93, OriginalScore: 100},
 			}, nil
 		},
 	})
@@ -139,7 +145,7 @@ func TestList_AppliesDecay(t *testing.T) {
 	if len(problems) != 1 {
 		t.Fatalf("expected 1 problem, got %d", len(problems))
 	}
-	if problems[0].DecayedScore >= 100 {
-		t.Errorf("expected decayed score < 100, got %f", problems[0].DecayedScore)
+	if problems[0].Score != 93 {
+		t.Errorf("expected Score=93 (already decayed from DB), got %d", problems[0].Score)
 	}
 }

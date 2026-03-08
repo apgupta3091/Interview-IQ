@@ -13,11 +13,11 @@ import (
 )
 
 type InsertProblemParams struct {
-	UserID, Attempts, TimeTakenMins, Score int
-	Name, Difficulty, SolutionType         string
-	Categories                             []string
-	LookedAtSolution                       bool
-	SolvedAt                               time.Time
+	UserID, Attempts, TimeTakenMins, Score, OriginalScore int
+	Name, Difficulty, SolutionType                        string
+	Categories                                            []string
+	LookedAtSolution                                      bool
+	SolvedAt                                              time.Time
 }
 
 // ListProblemsFilter holds optional server-side filter criteria for ListByUserFiltered.
@@ -44,6 +44,9 @@ type ProblemRepository interface {
 	Insert(ctx context.Context, p InsertProblemParams) (models.Problem, error)
 	ListByUser(ctx context.Context, userID int) ([]models.Problem, error)
 	ListByUserFiltered(ctx context.Context, userID int, f ListProblemsFilter) (ListProblemsResult, error)
+	// DecayAllProblems updates score = ApplyDecay(original_score, solved_at) for every row.
+	// Uses now as the reference time so the caller controls when "today" is.
+	DecayAllProblems(ctx context.Context, now time.Time) (int64, error)
 }
 
 type sqlProblemRepo struct {
@@ -58,17 +61,17 @@ func (r *sqlProblemRepo) Insert(ctx context.Context, p InsertProblemParams) (mod
 	var prob models.Problem
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO problems
-			(user_id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at, solution_type)
+			(user_id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, original_score, solved_at, solution_type)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, solved_at, created_at, solution_type`,
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, name, categories, difficulty, attempts, looked_at_solution, time_taken_mins, score, original_score, solved_at, created_at, solution_type`,
 		p.UserID, p.Name, pq.Array(p.Categories), p.Difficulty,
 		p.Attempts, p.LookedAtSolution, p.TimeTakenMins,
-		p.Score, p.SolvedAt, p.SolutionType,
+		p.Score, p.OriginalScore, p.SolvedAt, p.SolutionType,
 	).Scan(
 		&prob.ID, &prob.Name, pq.Array(&prob.Categories), &prob.Difficulty,
 		&prob.Attempts, &prob.LookedAtSolution, &prob.TimeTakenMins,
-		&prob.Score, &prob.SolvedAt, &prob.CreatedAt, &prob.SolutionType,
+		&prob.Score, &prob.OriginalScore, &prob.SolvedAt, &prob.CreatedAt, &prob.SolutionType,
 	)
 	if err != nil {
 		return models.Problem{}, err
@@ -80,7 +83,7 @@ func (r *sqlProblemRepo) Insert(ctx context.Context, p InsertProblemParams) (mod
 func (r *sqlProblemRepo) ListByUser(ctx context.Context, userID int) ([]models.Problem, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, name, categories, difficulty, attempts, looked_at_solution,
-		       time_taken_mins, score, solved_at, created_at, solution_type
+		       time_taken_mins, score, original_score, solved_at, created_at, solution_type
 		FROM problems
 		WHERE user_id = $1
 		ORDER BY created_at DESC`,
@@ -98,7 +101,7 @@ func (r *sqlProblemRepo) ListByUser(ctx context.Context, userID int) ([]models.P
 		if err := rows.Scan(
 			&p.ID, &p.Name, pq.Array(&p.Categories), &p.Difficulty,
 			&p.Attempts, &p.LookedAtSolution, &p.TimeTakenMins,
-			&p.Score, &p.SolvedAt, &p.CreatedAt, &p.SolutionType,
+			&p.Score, &p.OriginalScore, &p.SolvedAt, &p.CreatedAt, &p.SolutionType,
 		); err != nil {
 			return nil, err
 		}
@@ -186,7 +189,7 @@ func (r *sqlProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f L
 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, name, categories, difficulty, attempts, looked_at_solution,
-		       time_taken_mins, score, solved_at, created_at, solution_type
+		       time_taken_mins, score, original_score, solved_at, created_at, solution_type
 		FROM problems
 		`+where+`
 		ORDER BY created_at DESC
@@ -205,7 +208,7 @@ func (r *sqlProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f L
 		if err := rows.Scan(
 			&p.ID, &p.Name, pq.Array(&p.Categories), &p.Difficulty,
 			&p.Attempts, &p.LookedAtSolution, &p.TimeTakenMins,
-			&p.Score, &p.SolvedAt, &p.CreatedAt, &p.SolutionType,
+			&p.Score, &p.OriginalScore, &p.SolvedAt, &p.CreatedAt, &p.SolutionType,
 		); err != nil {
 			return ListProblemsResult{}, fmt.Errorf("ListByUserFiltered scan: %w", err)
 		}
@@ -219,4 +222,29 @@ func (r *sqlProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f L
 		problems = []models.Problem{}
 	}
 	return ListProblemsResult{Problems: problems, Total: total}, nil
+}
+
+// DecayAllProblems updates score = ApplyDecay(original_score, solved_at) for every problem row.
+// now is the reference timestamp used as "today" so callers control when decay is evaluated.
+// Constants match models/score.go: 7-day grace, 1.0 pt/day, 0.40 floor.
+func (r *sqlProblemRepo) DecayAllProblems(ctx context.Context, now time.Time) (int64, error) {
+	result, err := r.db.ExecContext(ctx, `
+		UPDATE problems
+		SET score = GREATEST(
+		    CEIL(original_score * 0.40),
+		    ROUND(
+		        original_score::numeric
+		        - GREATEST(
+		            EXTRACT(EPOCH FROM ($1::timestamptz - solved_at)) / 86400.0 - 7,
+		            0
+		          ) * 1.0
+		    )
+		)::integer`,
+		now,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("DecayAllProblems: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	return n, nil
 }
