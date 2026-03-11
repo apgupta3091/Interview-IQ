@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -68,6 +69,7 @@ export default function LogProblem() {
   const [lookedAtSolution, setLookedAtSolution] = useState(false)
   const [timeTaken, setTimeTaken] = useState('15')
   const [solutionType, setSolutionType] = useState<'none' | 'brute_force' | 'optimal'>('none')
+  const [notes, setNotes] = useState('')
 
   // Debounced search as user types in the name field
   const handleNameChange = useCallback((value: string) => {
@@ -130,6 +132,7 @@ export default function LogProblem() {
         looked_at_solution: lookedAtSolution,
         time_taken_mins: parseInt(timeTaken) || 1,
         solution_type: solutionType,
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
       toast.success('Problem logged!')
       navigate('/problems')
@@ -320,6 +323,19 @@ export default function LogProblem() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label htmlFor="notes">Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                id="notes"
+                placeholder="Approach, edge cases, things to remember…"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
             </div>
 
           </CardContent>

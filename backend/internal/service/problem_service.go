@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -37,6 +38,7 @@ var validDifficulties = map[string]bool{
 
 type LogProblemInput struct {
 	Name, Difficulty, SolutionType string
+	Notes                          string
 	Categories                     []string
 	Attempts, TimeTakenMins        int
 	LookedAtSolution               bool
@@ -64,6 +66,7 @@ type ListResult struct {
 
 type ProblemService interface {
 	Log(ctx context.Context, userID int, req LogProblemInput) (models.Problem, error)
+	GetByID(ctx context.Context, userID, id int) (models.Problem, error)
 	List(ctx context.Context, userID int) ([]models.Problem, error)
 	ListFiltered(ctx context.Context, userID int, params ListProblemsParams) (ListResult, error)
 }
@@ -125,10 +128,24 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 		TimeTakenMins:    req.TimeTakenMins,
 		LookedAtSolution: req.LookedAtSolution,
 		SolutionType:     req.SolutionType,
+		Notes:            req.Notes,
 		Score:            score,
 		OriginalScore:    score, // new problems start with score == original_score (no decay yet)
 		SolvedAt:         solvedAt,
 	})
+	if err != nil {
+		return models.Problem{}, err
+	}
+	return p, nil
+}
+
+// GetByID returns a single problem owned by userID. Translates repository.ErrNotFound
+// to service.ErrNotFound so the handler does not need to import the repository package.
+func (s *problemService) GetByID(ctx context.Context, userID, id int) (models.Problem, error) {
+	p, err := s.problems.GetByID(ctx, id, userID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return models.Problem{}, ErrNotFound
+	}
 	if err != nil {
 		return models.Problem{}, err
 	}

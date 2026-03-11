@@ -34,4 +34,7 @@ export const problems = {
 
   log: (body: LogProblemRequest) =>
     client.post<Problem>('/api/problems', body).then((r) => r.data),
+
+  getById: (id: number): Promise<Problem> =>
+    client.get<Problem>(`/api/problems/${id}`).then((r) => r.data),
 }

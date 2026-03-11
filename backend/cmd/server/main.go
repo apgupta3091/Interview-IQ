@@ -106,6 +106,7 @@ func main() {
 			r.Use(middleware.RateLimitByUser(rate.Every(500*time.Millisecond), 40))
 			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
+			r.Get("/problems/{problemID}", problemHandler.GetProblem)
 			r.Get("/categories/stats", categoryHandler.GetStats)
 			r.Get("/categories/weakest", categoryHandler.GetWeakest)
 			r.Get("/leetcode-problems/search", lcHandler.Search)

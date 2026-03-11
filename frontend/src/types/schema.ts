@@ -282,6 +282,7 @@ export interface components {
             difficulty?: string;
             looked_at_solution?: boolean;
             name?: string;
+            notes?: string;
             /**
              * @description SolutionType indicates how the user solved the problem.
              *     Accepted values: "none" (default), "brute_force", "optimal".
@@ -298,6 +299,7 @@ export interface components {
             id?: number;
             looked_at_solution?: boolean;
             name?: string;
+            notes?: string;
             original_score?: number;
             score?: number;
             solution_type?: string;

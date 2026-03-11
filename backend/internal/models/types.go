@@ -5,6 +5,7 @@ import "time"
 type Problem struct {
 	ID, UserID, Score, OriginalScore, Attempts, TimeTakenMins int
 	Name, Difficulty, SolutionType                            string
+	Notes                                                     string
 	Categories                                                []string
 	LookedAtSolution                                          bool
 	SolvedAt, CreatedAt                                       time.Time

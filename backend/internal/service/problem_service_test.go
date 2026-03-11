@@ -31,6 +31,10 @@ func (m *mockProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f 
 	return repository.ListProblemsResult{}, nil
 }
 
+func (m *mockProblemRepo) GetByID(_ context.Context, _, _ int) (models.Problem, error) {
+	return models.Problem{}, nil
+}
+
 func (m *mockProblemRepo) DecayAllProblems(_ context.Context, _ time.Time) (int64, error) {
 	return 0, nil
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
 import { Plus, FileX, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -92,6 +92,7 @@ function dateRangeToFrom(range: DateRangeValue): string | undefined {
 // ---------------------------------------------------------------------------
 
 export default function ProblemList() {
+  const navigate = useNavigate()
   // draft  — what the filter controls show (not yet applied to the query)
   const [draft, setDraft]     = useState<FilterState>(EMPTY_FILTERS)
   // applied — committed filters; the fetch effect depends on this value
@@ -265,7 +266,11 @@ export default function ProblemList() {
               </TableHeader>
               <TableBody>
                 {problems.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-muted/20 transition-colors">
+                  <TableRow
+                    key={p.id}
+                    className="hover:bg-muted/20 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/problems/${p.id}`)}
+                  >
                     <TableCell className="font-medium">
                       <span>{p.name}</span>
                       {nameCounts[p.name ?? ''] > 1 && latestIds.has(p.id ?? -1) && (

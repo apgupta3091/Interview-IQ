@@ -14,7 +14,7 @@ function AppShell() {
       className="flex flex-1 flex-col min-h-screen transition-[margin-left] duration-200 ease-linear"
       style={{
         marginLeft: open ? 'var(--sidebar-width, 16rem)' : '0',
-        marginRight: RETRY_PANEL_WIDTH,
+        marginRight: 'calc(var(--sidebar-width, 16rem) + 2rem)',
       }}
     >
       <header className="flex h-13 items-center gap-2 border-b px-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/apgupta3091/interview-iq/internal/middleware"
 	"github.com/apgupta3091/interview-iq/internal/models"
 	"github.com/apgupta3091/interview-iq/internal/service"
@@ -26,7 +28,8 @@ type logProblemRequest struct {
 	// SolutionType indicates how the user solved the problem.
 	// Accepted values: "none" (default), "brute_force", "optimal".
 	// "brute_force" applies a -15 point penalty; the others carry no penalty.
-	SolutionType string `json:"solution_type"`
+	SolutionType string  `json:"solution_type"`
+	Notes        *string `json:"notes"`
 }
 
 type problemResponse struct {
@@ -38,6 +41,7 @@ type problemResponse struct {
 	LookedAtSolution bool      `json:"looked_at_solution"`
 	TimeTakenMins    int       `json:"time_taken_mins"`
 	SolutionType     string    `json:"solution_type"`
+	Notes            string    `json:"notes"`
 	Score            int       `json:"score"`
 	OriginalScore    int       `json:"original_score"`
 	SolvedAt         time.Time `json:"solved_at"`
@@ -58,6 +62,7 @@ func toProblemResponse(p models.Problem) problemResponse {
 		LookedAtSolution: p.LookedAtSolution,
 		TimeTakenMins:    p.TimeTakenMins,
 		SolutionType:     p.SolutionType,
+		Notes:            p.Notes,
 		Score:            p.Score,
 		OriginalScore:    p.OriginalScore,
 		SolvedAt:         p.SolvedAt,
@@ -182,6 +187,11 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
 	p, err := h.Service.Log(r.Context(), userID, service.LogProblemInput{
 		Name:             req.Name,
 		Categories:       req.Categories,
@@ -190,6 +200,7 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 		LookedAtSolution: req.LookedAtSolution,
 		TimeTakenMins:    req.TimeTakenMins,
 		SolutionType:     req.SolutionType,
+		Notes:            notes,
 	})
 	if err != nil {
 		var ve service.ValidationError
@@ -202,4 +213,28 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, toProblemResponse(p))
+}
+
+// GetProblem returns a single problem by ID for the authenticated user.
+func (h *ProblemHandler) GetProblem(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserIDFromContext(r.Context())
+
+	idStr := chi.URLParam(r, "problemID")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid problem ID")
+		return
+	}
+
+	p, err := h.Service.GetByID(r.Context(), userID, id)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "problem not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to fetch problem")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toProblemResponse(p))
 }

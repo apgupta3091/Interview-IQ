@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrNoProblems = errors.New("no problems logged yet")
+	ErrNotFound   = errors.New("not found")
 )
 
 // ValidationError carries a user-facing validation message.
