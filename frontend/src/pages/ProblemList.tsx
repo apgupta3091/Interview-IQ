@@ -9,7 +9,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { api } from '@/lib/api'
 import type { Problem, ApiError, ProblemListResponse } from '@/types/api'
 import ProblemFilters, {
-  DATE_RANGE_OPTIONS,
   SCORE_RANGE_OPTIONS,
 } from '@/components/ProblemFilters'
 import type { DateRangeValue, ScoreRangeValue } from '@/components/ProblemFilters'
