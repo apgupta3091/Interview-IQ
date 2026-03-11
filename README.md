@@ -2,6 +2,9 @@
 
 A LeetCode-style interview prep tracker that scores your problem-solving sessions and uses time-based decay to surface what you need to review — not what you already know cold.
 
+**Free tier** — log up to 20 problems, full scoring and decay, skill radar, problem history. No credit card required.
+**Pro tier** — unlimited problem logging, AI-powered recommendations, and priority support. Payments via Stripe.
+
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
@@ -12,25 +15,29 @@ A LeetCode-style interview prep tracker that scores your problem-solving session
 
 ## What It Does
 
-When you solve a LeetCode problem, you log it: how many attempts it took, whether you peeked at the solution, and whether you reached an optimal or brute-force solution. Interview-IQ assigns a score (0–100), then decays that score over time as you'd naturally start forgetting the pattern.
+When you solve a LeetCode problem, you log it: how many attempts it took, whether you peeked at the solution, whether you reached an optimal or brute-force solution, and any notes on your approach. Interview-IQ assigns a score (0–100), then decays that score over time as you'd naturally start forgetting the pattern.
 
-Across all your logged problems, the app aggregates strength scores per category (arrays, graphs, dynamic programming, etc.) and visualizes them as both a radar chart and a bar chart. Your weakest category is surfaced automatically with targeted problem recommendations so you know exactly where to focus next.
+Across all your logged problems, the app aggregates strength scores per category (arrays, graphs, dynamic programming, etc.) and visualizes them as both a radar chart and a bar chart. Your weakest category is surfaced automatically. A persistent **Retry Panel** ranks the problems most worth revisiting right now, and the AI-powered **Recommendations** page generates targeted practice suggestions using GPT-4o-mini based on your actual history.
 
 **Core loop:**
 1. Solve a problem on LeetCode
 2. Search for it by name in the auto-complete log form — categories and difficulty auto-fill
-3. Add how many attempts it took and whether you peeked at the solution
+3. Add how many attempts it took, whether you peeked, solution type, and optional notes
 4. Score is computed and stored
 5. Over days/weeks, your scores decay — the radar chart shifts to reflect what you've retained
-6. The app tells you your weakest category and suggests what to practice next
+6. The Retry Panel and AI Recommendations tell you exactly what to practice next
 
 ---
 
 ## Screenshots
 
-> Dashboard — skill radar + category bar chart with weakest-category alert
+> Dashboard — skill radar + category bar chart + weakest-category alert + AI recommendation popover
 
-> Problem list — server-side search, multi-filter sidebar, paginated table with decayed scores
+> Problem list — server-side search, multi-filter sidebar, paginated table with decayed scores and deduplication badges
+
+> Problem detail — score history chart, attempt history table, notes, and decay breakdown
+
+> Recommendations — AI-generated problem suggestions per category with difficulty, description, and rationale
 
 ---
 
@@ -43,15 +50,15 @@ Across all your logged problems, the app aggregates strength scores per category
 | Base score | 100 |
 | Each extra attempt beyond the first | −10 (capped at −40) |
 | Looked at the solution | −25 |
-| Brute-force solution only | −10 |
+| Brute-force solution only | −15 |
 | Absolute minimum | 5 |
 
 Examples:
 - 1 attempt, optimal solution, no peek → **100**
-- 3 attempts, no peek, no solution type → **80**
+- 3 attempts, no peek, optimal → **80**
 - 5+ attempts, no peek → **60** (penalty capped)
 - 1 attempt, peeked → **75**
-- 1 attempt, brute-force only → **90**
+- 1 attempt, brute-force only → **85**
 - 5+ attempts, peeked → **35**
 
 ### Decay (applied at read time, never stored)
@@ -64,6 +71,8 @@ The raw score decays linearly after a 3-day grace period, flooring at 30% of the
 | 10 | 86 |
 | 21 | 64 |
 | 30+ | 30 (floor) |
+
+A background cron job runs daily at 10 PM EST to persist the decayed scores to the database, keeping the `DecayAllProblems` calculation cheap at read time.
 
 ### Category Strength
 
@@ -80,10 +89,13 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 | Database | PostgreSQL 16 |
 | DB access | `database/sql` + `lib/pq` (no ORM) |
 | Authentication | Clerk (RS256 JWT verification) |
+| AI recommendations | OpenAI GPT-4o-mini |
 | Rate limiting | Token-bucket per IP + per user (`golang.org/x/time/rate`) |
+| Scheduled jobs | Background goroutine (daily decay cron) |
+| Payments | Stripe (pro tier) |
 | Frontend | React 19 + Vite + TypeScript (strict) |
 | UI components | ShadCN/UI |
-| Charts | Recharts (radar + bar chart) |
+| Charts | Recharts (radar + bar chart + line chart) |
 | HTTP client | Axios |
 | Routing | React Router |
 
@@ -95,25 +107,50 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 - **Clerk authentication** — Clerk handles identity; the backend verifies RS256 JWTs and upserts users on first sign-in
 - **LeetCode problem catalog** — a seeded `leetcode_problems` table with full-text GIN index powers typeahead search
 - **Multi-category tagging** — each problem can be tagged with multiple categories (`categories TEXT[]`)
-- **Solution type** — log whether you reached an optimal or brute-force solution; scores reflect the difference
-- **Server-side search, filter, and pagination** — the `/api/problems` endpoint supports `q`, `categories`, `difficulties`, `score_min`, `score_max`, `date_from`, `date_to`, `page`, and `page_size` query params
+- **Solution type** — log whether you reached an optimal or brute-force solution; brute-force carries a −15 point penalty
+- **Notes** — optional free-text field per attempt to record approach, edge cases, or learnings
+- **Server-side search, filter, and pagination** — the `/api/problems` endpoint supports `q`, `categories`, `difficulties`, `score_min`, `score_max`, `date_from`, `date_to`, `limit`, and `offset` query params
+- **AI recommendations** — `GET /api/recommendations` calls GPT-4o-mini with a structured prompt built from your actual problem history; auto-selects categories below 60 strength (or weakest if all ≥ 60); excludes already-attempted problems with score ≥ 75
+- **Daily decay cron** — background goroutine runs `DecayAllProblems` nightly at 10 PM EST so stored `decayed_score` stays fresh
 - **Rate limiting** — token-bucket limiters applied per IP (unauthenticated routes) and per user ID (authenticated routes); idle entries are pruned in the background
 - **Input sanitization** — all string inputs stripped and length-validated before reaching the service layer
 - **Score by latest attempt** — category stats are computed from the most recent attempt per problem, not an average across all attempts
-- **Decay at read time** — `ApplyDecay` is never persisted; it is computed fresh on every read
+- **Decay at read time** — `ApplyDecay` is never persisted for ad-hoc reads; it is computed fresh on every direct read
 
 ### Frontend
 - **Clerk-powered auth** — sign-in and sign-up handled by Clerk's hosted UI; no custom login forms to maintain
-- **ShadCN/UI sidebar layout** — collapsible sidebar with dark/light mode toggle
-- **Skill radar chart** — all 17+ categories shown even if strength is 0, so gaps are visible
+- **ShadCN/UI sidebar layout** — collapsible sidebar with dark/light mode toggle (persisted preference)
+- **Skill radar chart** — all 21 categories shown even if strength is 0, so gaps are visible
 - **Category bar chart** — precise per-category strength values alongside the radar
 - **Weakest category banner** — dashboard surfaces your lowest-strength category with 3 targeted problem recommendations
-- **LeetCode typeahead** — log form searches the problem catalog as you type; selecting a problem auto-fills difficulty
+- **AI recommendation popover** — one-click AI recommendations from the dashboard toolbar, plus a dedicated Recommendations page with category filter and per-category result cards (problem name, difficulty, description, rationale)
+- **Retry Panel** — fixed right sidebar ranking your top 8 problems to revisit, scored by `(100 − score) × (100 − category_weakness) / 100`; links directly to each problem's detail page
+- **LeetCode typeahead** — log form searches the problem catalog as you type (600 ms debounce); selecting a problem auto-fills difficulty and categories
 - **Multi-category selector** — log a problem against one or more categories with a badge-based picker
-- **Problem list with filters** — filter by name, category, difficulty, score range, and date range; filters apply on demand (not on every keystroke); paginated at 20 per page
+- **Notes field** — optional textarea on the log form for recording your approach or edge cases
+- **Problem detail page** — per-problem view with decay breakdown, score history line chart, full attempt history table, and saved notes
+- **Problem list with filters** — filter by name, category, difficulty, score range (preset buckets), and date range (preset windows); paginated at 20 per page
+- **Problem deduplication badges** — "Latest" and "Earlier attempt" tags on repeated problem entries in the list
+- **Decay tooltip** — hovering a decayed score shows the original score, decay amount (−X in red), and time since solved
 - **Loading skeleton + progress bar** — feedback on every data fetch
-- **LeetCode-style difficulty badges** — color-coded Easy / Medium / Hard badges consistent with leetcode.com conventions
+- **LeetCode-style difficulty badges** — color-coded Easy / Medium / Hard badges
 - **Dark/light mode** — persisted theme preference with a single toggle
+
+---
+
+## Tiers
+
+| Feature | Free | Pro |
+|---|---|---|
+| Problems logged | Up to 20 | Unlimited |
+| Scoring & decay | ✓ | ✓ |
+| Skill radar & bar chart | ✓ | ✓ |
+| Problem detail & history | ✓ | ✓ |
+| Retry Panel | ✓ | ✓ |
+| AI Recommendations | — | ✓ |
+| Priority support | — | ✓ |
+
+Pro subscriptions are managed through Stripe. Payments are not yet wired (coming soon).
 
 ---
 
@@ -127,6 +164,7 @@ All protected endpoints require a Clerk-issued JWT in the `Authorization: Bearer
 |---|---|---|---|
 | `GET` | `/api/problems` | Clerk JWT | List problems with decayed scores (filterable, paginated) |
 | `POST` | `/api/problems` | Clerk JWT | Log a new problem attempt |
+| `GET` | `/api/problems/{problemID}` | Clerk JWT | Get a single problem by ID |
 
 #### Query parameters for `GET /api/problems`
 
@@ -139,8 +177,8 @@ All protected endpoints require a Clerk-issued JWT in the `Authorization: Bearer
 | `score_max` | int | Maximum decayed score (0–100) |
 | `date_from` | string | ISO 8601 date, inclusive lower bound on `solved_at` |
 | `date_to` | string | ISO 8601 date, inclusive upper bound on `solved_at` |
-| `page` | int | Page number (1-indexed, default: 1) |
-| `page_size` | int | Results per page (default: 20, max: 100) |
+| `limit` | int | Results per page (default: 20, max: 100) |
+| `offset` | int | Zero-based offset for pagination |
 
 ### Categories
 
@@ -148,6 +186,21 @@ All protected endpoints require a Clerk-issued JWT in the `Authorization: Bearer
 |---|---|---|---|
 | `GET` | `/api/categories/stats` | Clerk JWT | Per-category strength scores (0–100) |
 | `GET` | `/api/categories/weakest` | Clerk JWT | Weakest category + 3 recommended problems |
+
+### Recommendations
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/recommendations` | Clerk JWT | AI-generated problem recommendations per category |
+
+#### Query parameters for `GET /api/recommendations`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `category` | string (repeatable) | Limit to specific categories; omit to auto-select weak ones |
+| `from` | string | ISO 8601 date lower bound for practice history context |
+| `to` | string | ISO 8601 date upper bound for practice history context |
+| `limit` | int | Recommendations per category (1–10, default: 3) |
 
 ### LeetCode Problem Search
 
@@ -175,7 +228,8 @@ Content-Type: application/json
   "attempts": 1,
   "looked_at_solution": false,
   "solution_type": "optimal",
-  "time_taken_mins": 12
+  "time_taken_mins": 12,
+  "notes": "Used a hash map to store complement → index. O(n) time, O(n) space."
 }
 ```
 
@@ -191,12 +245,13 @@ Content-Type: application/json
   "time_taken_mins": 12,
   "score": 100,
   "decayed_score": 100,
+  "notes": "Used a hash map to store complement → index. O(n) time, O(n) space.",
   "solved_at": "2026-03-08T14:30:00Z",
   "created_at": "2026-03-08T14:30:00Z"
 }
 ```
 
-### Valid Categories
+### Valid Categories (21 total)
 
 ```
 array, string, hash-map, two-pointers, sliding-window, binary-search,
@@ -220,6 +275,7 @@ dp, dp-2d, backtracking, greedy, intervals, math, bit-manipulation, other
 - [Node.js 20+ and pnpm](https://pnpm.io/installation)
 - [Docker](https://www.docker.com/) (for local PostgreSQL)
 - A free [Clerk](https://clerk.com) account — create an app and grab your keys
+- An [OpenAI](https://platform.openai.com) API key (for AI recommendations)
 
 ### 1. Clone and set up environment variables
 
@@ -233,6 +289,7 @@ cd interview-iq
 PORT=8080
 DATABASE_URL=postgres://interviewiq:interviewiq_secret@localhost:5432/interviewiq?sslmode=disable
 CLERK_SECRET_KEY=sk_test_...
+OPENAI_API_KEY=sk-...
 ```
 
 **Frontend** — create `frontend/.env.local`:
@@ -295,36 +352,65 @@ SEED_USER_ID=1 go run ./cmd/seed
 interview-iq/
 ├── backend/
 │   ├── cmd/
-│   │   └── server/main.go          # Entry point: env, DI wiring, router setup
+│   │   └── server/main.go              # Entry point: env, DI wiring, router setup
 │   ├── migrations/
-│   │   ├── 001_init.sql            # users + problems schema
-│   │   ├── 002_clerk_auth.sql      # clerk_user_id column; nullable email
-│   │   ├── 002_multi_category.sql  # categories TEXT[] replaces single category
-│   │   ├── 003_leetcode_problems.sql # leetcode_problems catalog + GIN index
-│   │   ├── 004_solution_type.sql   # solution_type column (none/brute_force/optimal)
-│   │   └── 005_nullable_email.sql  # make email nullable for Clerk-only sign-in
+│   │   ├── 001_init.sql                # users + problems schema
+│   │   ├── 002_clerk_auth.sql          # clerk_user_id column; nullable email
+│   │   ├── 002_multi_category.sql      # categories TEXT[] replaces single category
+│   │   ├── 003_leetcode_problems.sql   # leetcode_problems catalog + GIN index
+│   │   ├── 004_solution_type.sql       # solution_type column (none/brute_force/optimal)
+│   │   └── 005_nullable_email.sql      # make email nullable for Clerk-only sign-in
 │   └── internal/
-│       ├── handlers/               # HTTP layer — thin, no business logic
-│       ├── service/                # Validation + business logic
-│       ├── repository/             # SQL only — no business logic
-│       ├── models/                 # Domain types + scoring functions
-│       └── middleware/
-│           ├── auth.go             # ClerkAuthenticate: verifies RS256 JWT, upserts user
-│           └── rate_limit.go       # Per-IP and per-user token-bucket limiters
+│       ├── handlers/                   # HTTP layer — thin, no business logic
+│       │   ├── problems.go             # List, Log, GetByID
+│       │   ├── categories.go           # GetStats, GetWeakest
+│       │   ├── recommendations.go      # AI-powered recommendations
+│       │   ├── leetcode.go             # LeetCode catalog search
+│       │   └── helpers.go             # writeJSON, writeError
+│       ├── service/                    # Validation + business logic
+│       │   ├── problem_service.go
+│       │   ├── category_service.go
+│       │   └── recommendation_service.go  # OpenAI GPT-4o-mini integration
+│       ├── repository/                 # SQL only — no business logic
+│       │   ├── user_repo.go
+│       │   ├── problem_repo.go         # Includes DecayAllProblems
+│       │   ├── category_repo.go
+│       │   └── leetcode_repo.go
+│       ├── models/                     # Domain types + scoring functions
+│       │   ├── types.go
+│       │   └── score.go               # ComputeScore, ApplyDecay
+│       ├── middleware/
+│       │   ├── auth.go                # ClerkAuthenticate: verifies RS256 JWT, upserts user
+│       │   └── rate_limit.go          # Per-IP and per-user token-bucket limiters
+│       └── cron/
+│           └── decay.go               # Daily decay cron (10 PM EST)
 └── frontend/
     └── src/
         ├── pages/
-        │   ├── Dashboard.tsx       # Radar + bar chart + weakest category banner
-        │   ├── ProblemList.tsx     # Paginated table with filter sidebar
-        │   └── LogProblem.tsx      # Log form with LeetCode typeahead + multi-category picker
+        │   ├── Dashboard.tsx           # Radar + bar chart + weakest banner + AI popover
+        │   ├── ProblemList.tsx         # Paginated table with filter sidebar + dedup badges
+        │   ├── ProblemDetail.tsx       # Score history, attempt table, notes, decay breakdown
+        │   ├── LogProblem.tsx          # Log form: typeahead, multi-category, notes
+        │   └── Recommendations.tsx     # AI recommendations page
         ├── components/
+        │   ├── AppLayout.tsx           # Layout shell (sidebar + retry panel)
+        │   ├── AppSidebar.tsx          # Left nav + theme toggle + sign out
+        │   ├── RetryPanel.tsx          # Right sidebar: prioritized retry queue
+        │   ├── ProblemFilters.tsx      # Filter controls (search, category, difficulty, date, score)
         │   ├── CategoryRadarChart.tsx
         │   ├── CategoryBarChart.tsx
-        │   ├── ProblemFilters.tsx
-        │   └── AppSidebar.tsx
-        ├── hooks/                  # Custom React hooks
-        ├── types/api.ts            # TypeScript types mirroring API responses
-        └── lib/api.ts              # Axios instance with Clerk JWT interceptor
+        │   └── ui/                    # ShadCN auto-generated (do not hand-edit)
+        ├── lib/
+        │   ├── api/                   # Per-resource Axios wrappers
+        │   │   ├── client.ts          # Axios instance + Clerk JWT interceptor
+        │   │   ├── problems.ts
+        │   │   ├── categories.ts
+        │   │   ├── leetcode.ts
+        │   │   └── recommendations.ts
+        │   └── constants.ts           # CATEGORIES list (21 values)
+        ├── hooks/                     # Custom React hooks
+        ├── types/api.ts               # TypeScript types mirroring API responses
+        └── main.tsx                   # Routes + ClerkProvider
 ```
 
 The backend follows a strict 3-layer architecture: **handlers** call **services**, services call **repositories**. Layers communicate via interfaces and are independently testable.
@@ -343,16 +429,24 @@ The backend follows a strict 3-layer architecture: **handlers** call **services*
 
 ### Score model invariant
 
-`ComputeScore` is called **once at write time** and stored in the DB. `ApplyDecay` is called **at read time only** and is never persisted. This keeps historical scores stable while letting the displayed value reflect how much you've retained.
+`ComputeScore` is called **once at write time** and stored in the DB. `ApplyDecay` is called **at read time only** and is never persisted for individual reads. The nightly cron job persists decayed scores in bulk so the `decayed_score` column stays current without per-request computation overhead.
+
+### AI recommendations
+
+`RecommendationService` builds a structured prompt from the user's actual problem history and posts it to the OpenAI chat completions API (`gpt-4o-mini`, JSON response format). The response is post-filtered to exclude problems the user has already attempted with a score ≥ 75. Categories below 60 strength are auto-selected if no explicit category filter is provided; if all categories are ≥ 60, the weakest is used.
+
+### Retry Panel ranking
+
+Problems are ranked by: `(100 − score) × (100 − weakest_category_strength) / 100`. Only problems with a score below 80 are eligible. The top 8 are shown. This surfaces problems at the intersection of personal weakness and category weakness.
 
 ### Rate limiting
 
 Two independent token-bucket limiters run in the middleware chain:
 
-| Limiter | Scope | Burst |
-|---|---|---|
-| IP limiter | Unauthenticated and authenticated routes | Configurable |
-| User limiter | Authenticated routes only (keyed on internal user ID) | Configurable |
+| Limiter | Scope | Sustained | Burst |
+|---|---|---|---|
+| IP limiter | All routes | 60 req/min | 20 |
+| User limiter | Authenticated routes | 120 req/min | 40 |
 
 Idle limiter entries are pruned in a background goroutine to prevent unbounded memory growth.
 
