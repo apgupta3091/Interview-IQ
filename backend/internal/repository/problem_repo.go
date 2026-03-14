@@ -47,6 +47,8 @@ type ProblemRepository interface {
 	GetByID(ctx context.Context, id, userID int) (models.Problem, error)
 	ListByUser(ctx context.Context, userID int) ([]models.Problem, error)
 	ListByUserFiltered(ctx context.Context, userID int, f ListProblemsFilter) (ListProblemsResult, error)
+	// CountByUser returns the total number of problems logged by the given user.
+	CountByUser(ctx context.Context, userID int) (int, error)
 	// DecayAllProblems updates score = ApplyDecay(original_score, solved_at) for every row.
 	// Uses now as the reference time so the caller controls when "today" is.
 	DecayAllProblems(ctx context.Context, now time.Time) (int64, error)
@@ -263,6 +265,19 @@ func (r *sqlProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f L
 		problems = []models.Problem{}
 	}
 	return ListProblemsResult{Problems: problems, Total: total}, nil
+}
+
+// CountByUser returns the total number of problems logged by the given user.
+func (r *sqlProblemRepo) CountByUser(ctx context.Context, userID int) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM problems WHERE user_id = $1`,
+		userID,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("CountByUser: %w", err)
+	}
+	return count, nil
 }
 
 // DecayAllProblems updates score = ApplyDecay(original_score, solved_at) for every problem row.

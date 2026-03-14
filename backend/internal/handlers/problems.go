@@ -180,6 +180,7 @@ func (h *ProblemHandler) ListProblems(w http.ResponseWriter, r *http.Request) {
 // @Router       /problems [post]
 func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
+	tier := middleware.TierFromContext(r.Context())
 
 	var req logProblemRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -201,8 +202,13 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 		TimeTakenMins:    req.TimeTakenMins,
 		SolutionType:     req.SolutionType,
 		Notes:            notes,
+		Tier:             tier,
 	})
 	if err != nil {
+		if errors.Is(err, service.ErrFreeTierLimitReached) {
+			writeError(w, http.StatusPaymentRequired, "free tier limit reached: upgrade to Pro to log more problems")
+			return
+		}
 		var ve service.ValidationError
 		if errors.As(err, &ve) {
 			writeError(w, http.StatusBadRequest, ve.Message)

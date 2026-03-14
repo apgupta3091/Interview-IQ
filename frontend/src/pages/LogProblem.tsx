@@ -138,8 +138,13 @@ export default function LogProblem() {
       navigate('/problems')
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        const msg = (err.response?.data as ApiError)?.error ?? 'Failed to log problem'
-        toast.error(msg)
+        if (err.response?.status === 402) {
+          toast.error('Free tier limit reached — upgrade to Pro to log more problems.')
+          navigate('/pricing')
+        } else {
+          const msg = (err.response?.data as ApiError)?.error ?? 'Failed to log problem'
+          toast.error(msg)
+        }
       } else {
         toast.error('Unexpected error')
       }

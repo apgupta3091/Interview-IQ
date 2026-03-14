@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 
 // maxNameLen is the maximum allowed length for a problem name in characters.
 const maxNameLen = 200
+
+// freeTierProblemLimit is the maximum number of problems a free-tier user can log.
+const freeTierProblemLimit = 20
 
 // escapeLikePattern escapes LIKE/ILIKE metacharacters so a raw user string
 // can be safely used as a substring pattern (repo wraps it in % wildcards).
@@ -39,9 +43,12 @@ var validDifficulties = map[string]bool{
 type LogProblemInput struct {
 	Name, Difficulty, SolutionType string
 	Notes                          string
-	Categories                     []string
-	Attempts, TimeTakenMins        int
-	LookedAtSolution               bool
+	// Tier is the user's subscription tier ("free" or "pro"), set by the handler
+	// from the request context. Used to enforce the free-tier problem cap.
+	Tier                    string
+	Categories              []string
+	Attempts, TimeTakenMins int
+	LookedAtSolution        bool
 }
 
 // ListProblemsParams mirrors repository.ListProblemsFilter but lives at the service layer
@@ -69,6 +76,8 @@ type ProblemService interface {
 	GetByID(ctx context.Context, userID, id int) (models.Problem, error)
 	List(ctx context.Context, userID int) ([]models.Problem, error)
 	ListFiltered(ctx context.Context, userID int, params ListProblemsParams) (ListResult, error)
+	// Count returns the total number of problems logged by the user.
+	Count(ctx context.Context, userID int) (int, error)
 }
 
 type problemService struct {
@@ -114,6 +123,17 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 	validSolutionTypes := map[string]bool{"none": true, "brute_force": true, "optimal": true}
 	if !validSolutionTypes[req.SolutionType] {
 		req.SolutionType = "none"
+	}
+
+	// Enforce the free-tier problem cap before inserting.
+	if req.Tier == "" || req.Tier == "free" {
+		count, err := s.problems.CountByUser(ctx, userID)
+		if err != nil {
+			return models.Problem{}, fmt.Errorf("Log: check free tier cap: %w", err)
+		}
+		if count >= freeTierProblemLimit {
+			return models.Problem{}, ErrFreeTierLimitReached
+		}
 	}
 
 	score := models.ComputeScore(req.Attempts, req.LookedAtSolution, req.SolutionType)
@@ -181,4 +201,9 @@ func (s *problemService) ListFiltered(ctx context.Context, userID int, params Li
 		return ListResult{}, err
 	}
 	return ListResult{Problems: result.Problems, Total: result.Total}, nil
+}
+
+// Count returns the total number of problems logged by the user.
+func (s *problemService) Count(ctx context.Context, userID int) (int, error) {
+	return s.problems.CountByUser(ctx, userID)
 }

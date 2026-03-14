@@ -14,6 +14,7 @@ type mockProblemRepo struct {
 	insertFn             func(ctx context.Context, p repository.InsertProblemParams) (models.Problem, error)
 	listByUserFn         func(ctx context.Context, userID int) ([]models.Problem, error)
 	listByUserFilteredFn func(ctx context.Context, userID int, f repository.ListProblemsFilter) (repository.ListProblemsResult, error)
+	countByUserFn        func(ctx context.Context, userID int) (int, error)
 }
 
 func (m *mockProblemRepo) Insert(ctx context.Context, p repository.InsertProblemParams) (models.Problem, error) {
@@ -33,6 +34,13 @@ func (m *mockProblemRepo) ListByUserFiltered(ctx context.Context, userID int, f 
 
 func (m *mockProblemRepo) GetByID(_ context.Context, _, _ int) (models.Problem, error) {
 	return models.Problem{}, nil
+}
+
+func (m *mockProblemRepo) CountByUser(ctx context.Context, userID int) (int, error) {
+	if m.countByUserFn != nil {
+		return m.countByUserFn(ctx, userID)
+	}
+	return 0, nil // default: user has no problems — always under the free tier cap
 }
 
 func (m *mockProblemRepo) DecayAllProblems(_ context.Context, _ time.Time) (int64, error) {
