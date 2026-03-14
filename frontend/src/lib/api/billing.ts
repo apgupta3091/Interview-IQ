@@ -1,4 +1,4 @@
-import { client } from './client'
+import client from './client'
 
 export const billing = {
   createCheckout: async (plan: 'monthly' | 'annual'): Promise<{ url: string }> => {
