@@ -65,14 +65,15 @@ Examples:
 
 ### Decay (applied at read time, never stored)
 
-The raw score decays linearly after a 3-day grace period, flooring at 30% of the original. This simulates the forgetting curve — a problem you solved three weeks ago is worth less than one you nailed yesterday.
+The raw score decays linearly after a 7-day grace period, flooring at 40% of the original. This simulates the forgetting curve — a problem you solved three weeks ago is worth less than one you nailed yesterday.
 
 | Days since solving | Effect on a 100-point score |
 |---|---|
-| 0–3 | 100 (no decay) |
-| 10 | 86 |
-| 21 | 64 |
-| 30+ | 30 (floor) |
+| 0–7 | 100 (no decay) |
+| 14 | 93 |
+| 21 | 86 |
+| 30 | 77 |
+| 60+ | 40 (floor) |
 
 A background cron job runs daily at 10 PM EST to persist the decayed scores to the database, keeping the `DecayAllProblems` calculation cheap at read time.
 
@@ -214,11 +215,21 @@ All protected endpoints require a Clerk-issued JWT in the `Authorization: Bearer
 |---|---|---|---|
 | `GET` | `/api/leetcode-problems/search` | Clerk JWT | Typeahead search against the LeetCode catalog |
 
-### Health
+### Billing
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/billing/status` | Clerk JWT | Returns subscription tier, problem count, and limit (0 = unlimited for Pro) |
+| `POST` | `/api/billing/checkout` | Clerk JWT | Creates a Stripe Checkout Session; body: `{"plan": "monthly"\|"annual"}` |
+| `POST` | `/api/billing/portal` | Clerk JWT | Creates a Stripe Billing Portal session for managing/cancelling a subscription |
+| `POST` | `/api/webhooks/stripe` | None (Stripe signature) | Stripe webhook handler — processes subscription lifecycle events |
+
+### Health & Docs
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/health` | None | Health check — returns `200` if DB is reachable, `503` otherwise |
+| `GET` | `/swagger/*` | None | Interactive API documentation (Swagger UI) |
 
 ### Example: Log a Problem
 
@@ -421,7 +432,10 @@ interview-iq/
 │   │   ├── 002_multi_category.sql      # categories TEXT[] replaces single category
 │   │   ├── 003_leetcode_problems.sql   # leetcode_problems catalog + GIN index
 │   │   ├── 004_solution_type.sql       # solution_type column (none/brute_force/optimal)
-│   │   └── 005_nullable_email.sql      # make email nullable for Clerk-only sign-in
+│   │   ├── 005_nullable_email.sql      # make email nullable for Clerk-only sign-in
+│   │   ├── 006_original_score.sql      # original_score column; backfill + recompute decayed scores
+│   │   ├── 007_notes.sql               # notes TEXT column on problems
+│   │   └── 008_billing.sql             # stripe_customer_id + subscription_tier on users
 │   └── internal/
 │       ├── handlers/                   # HTTP layer — thin, no business logic
 │       │   ├── problems.go             # List, Log, GetByID
@@ -454,6 +468,7 @@ interview-iq/
         │   ├── ProblemDetail.tsx       # Score history, attempt table, notes, decay breakdown
         │   ├── LogProblem.tsx          # Log form: typeahead, multi-category, notes
         │   ├── Recommendations.tsx     # AI recommendations page
+        │   ├── Pricing.tsx             # Upgrade page with plan comparison + Stripe checkout
         │   ├── PrivacyPolicy.tsx       # Privacy policy (/privacy)
         │   └── Terms.tsx               # Terms of service (/terms)
         ├── components/
