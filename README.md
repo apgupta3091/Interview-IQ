@@ -10,6 +10,8 @@ A LeetCode-style interview prep tracker that scores your problem-solving session
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)
+![Railway](https://img.shields.io/badge/Backend-Railway-0B0D0E?logo=railway&logoColor=white)
+![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel&logoColor=white)
 
 ---
 
@@ -92,12 +94,16 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 | AI recommendations | OpenAI GPT-4o-mini |
 | Rate limiting | Token-bucket per IP + per user (`golang.org/x/time/rate`) |
 | Scheduled jobs | Background goroutine (daily decay cron) |
-| Payments | Stripe (pro tier) |
+| Payments | Stripe (pro tier, live) |
 | Frontend | React 19 + Vite + TypeScript (strict) |
 | UI components | ShadCN/UI |
 | Charts | Recharts (radar + bar chart + line chart) |
 | HTTP client | Axios |
 | Routing | React Router |
+| Error monitoring | Sentry (backend + frontend) |
+| Product analytics | PostHog |
+| Backend hosting | Railway |
+| Frontend hosting | Vercel |
 
 ---
 
@@ -150,7 +156,7 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 | AI Recommendations | — | ✓ |
 | Priority support | — | ✓ |
 
-Pro subscriptions are managed through Stripe. Payments are not yet wired (coming soon).
+Pro subscriptions are billed via Stripe and managed through the Stripe billing portal. Users can upgrade, downgrade, or cancel at any time — access continues until the end of the billing period.
 
 ---
 
@@ -212,7 +218,7 @@ All protected endpoints require a Clerk-issued JWT in the `Authorization: Bearer
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/health` | None | Health check |
+| `GET` | `/health` | None | Health check — returns `200` if DB is reachable, `503` otherwise |
 
 ### Example: Log a Problem
 
@@ -276,6 +282,7 @@ dp, dp-2d, backtracking, greedy, intervals, math, bit-manipulation, other
 - [Docker](https://www.docker.com/) (for local PostgreSQL)
 - A free [Clerk](https://clerk.com) account — create an app and grab your keys
 - An [OpenAI](https://platform.openai.com) API key (for AI recommendations)
+- A [Stripe](https://stripe.com) account (for billing; test mode is fine locally)
 
 ### 1. Clone and set up environment variables
 
@@ -287,15 +294,25 @@ cd interview-iq
 **Backend** — create `backend/.env`:
 ```bash
 PORT=8080
+APP_ENV=development
 DATABASE_URL=postgres://interviewiq:interviewiq_secret@localhost:5432/interviewiq?sslmode=disable
 CLERK_SECRET_KEY=sk_test_...
 OPENAI_API_KEY=sk-...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_MONTHLY=price_...
+STRIPE_PRICE_ANNUAL=price_...
+FRONTEND_URL=http://localhost:5173
+# SENTRY_DSN=  (optional locally)
 ```
 
 **Frontend** — create `frontend/.env.local`:
 ```bash
 VITE_API_URL=http://localhost:8080
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+# VITE_SENTRY_DSN=  (optional locally)
+# VITE_POSTHOG_KEY=  (optional locally)
 ```
 
 ### 2. Start the database
@@ -346,11 +363,56 @@ SEED_USER_ID=1 go run ./cmd/seed
 
 ---
 
+## Deployment
+
+The production stack runs on:
+- **Backend + Postgres** → [Railway](https://railway.app) (Go service + managed Postgres, auto-deploys from `main` via GitHub Actions)
+- **Frontend** → [Vercel](https://vercel.com) (auto-deploys from `main` on push)
+- **Domain + DNS** → Cloudflare (`interview-iq.com`)
+
+### Production environment variables
+
+**Railway (backend):**
+
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | Auto-injected by Railway Postgres |
+| `PORT` | `8080` |
+| `APP_ENV` | `production` |
+| `CLERK_SECRET_KEY` | Production Clerk secret |
+| `OPENAI_API_KEY` | Production OpenAI key |
+| `STRIPE_SECRET_KEY` | Live Stripe secret |
+| `STRIPE_WEBHOOK_SECRET` | From Stripe → Webhooks |
+| `STRIPE_PRICE_MONTHLY` | Live monthly price ID |
+| `STRIPE_PRICE_ANNUAL` | Live annual price ID |
+| `FRONTEND_URL` | `https://interview-iq.com` |
+| `SENTRY_DSN` | Backend Sentry DSN |
+
+**Vercel (frontend):**
+
+| Variable | Notes |
+|---|---|
+| `VITE_API_URL` | `https://api.interview-iq.com` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Production Clerk publishable key |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Live Stripe publishable key |
+| `VITE_SENTRY_DSN` | Frontend Sentry DSN |
+| `VITE_POSTHOG_KEY` | PostHog project key |
+
+**GitHub Secrets (for CI):**
+
+| Secret | Notes |
+|---|---|
+| `RAILWAY_TOKEN` | Railway API token (Account → API Tokens) |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Used during frontend CI build |
+
+---
+
 ## Project Structure
 
 ```
 interview-iq/
 ├── backend/
+│   ├── Dockerfile                      # Multi-stage Alpine build for Railway
 │   ├── cmd/
 │   │   └── server/main.go              # Entry point: env, DI wiring, router setup
 │   ├── migrations/
@@ -391,7 +453,9 @@ interview-iq/
         │   ├── ProblemList.tsx         # Paginated table with filter sidebar + dedup badges
         │   ├── ProblemDetail.tsx       # Score history, attempt table, notes, decay breakdown
         │   ├── LogProblem.tsx          # Log form: typeahead, multi-category, notes
-        │   └── Recommendations.tsx     # AI recommendations page
+        │   ├── Recommendations.tsx     # AI recommendations page
+        │   ├── PrivacyPolicy.tsx       # Privacy policy (/privacy)
+        │   └── Terms.tsx               # Terms of service (/terms)
         ├── components/
         │   ├── AppLayout.tsx           # Layout shell (sidebar + retry panel)
         │   ├── AppSidebar.tsx          # Left nav + theme toggle + sign out
@@ -402,7 +466,7 @@ interview-iq/
         │   └── ui/                    # ShadCN auto-generated (do not hand-edit)
         ├── lib/
         │   ├── api/                   # Per-resource Axios wrappers
-        │   │   ├── client.ts          # Axios instance + Clerk JWT interceptor
+        │   │   ├── client.ts          # Axios instance + Clerk JWT interceptor + 401 handler
         │   │   ├── problems.ts
         │   │   ├── categories.ts
         │   │   ├── leetcode.ts
