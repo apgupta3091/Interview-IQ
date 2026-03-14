@@ -313,7 +313,7 @@ export default function LogProblem() {
                     type="button"
                     onClick={() => setSolutionType(value)}
                     className={cn(
-                      'flex flex-col items-center justify-center rounded-lg border px-2 py-2.5 text-sm transition-colors',
+                      'flex flex-col items-center justify-center rounded-lg border px-2 py-2 sm:py-2.5 text-xs sm:text-sm transition-colors',
                       solutionType === value
                         ? value === 'brute_force'
                           ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'

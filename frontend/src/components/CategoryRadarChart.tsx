@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import type { CategoryStats } from '@/types/api'
 
-type Props = { stats: CategoryStats[] }
+type Props = { stats: CategoryStats[]; height?: number }
 
 // Short label so the axis text fits around the chart
 function shortLabel(cat: string) {
@@ -56,7 +56,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 import { CATEGORIES as ALL_CATEGORIES } from '@/lib/constants'
 
-export default function CategoryRadarChart({ stats }: Props) {
+export default function CategoryRadarChart({ stats, height = 380 }: Props) {
   const statsMap = new Map(stats.map((s) => [s.category, Math.round(s.strength ?? 0)]))
 
   const data = ALL_CATEGORIES.map((cat) => ({
@@ -66,7 +66,7 @@ export default function CategoryRadarChart({ stats }: Props) {
   }))
 
   return (
-    <ResponsiveContainer width="100%" height={380}>
+    <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
         <PolarGrid
           stroke="hsl(var(--border))"

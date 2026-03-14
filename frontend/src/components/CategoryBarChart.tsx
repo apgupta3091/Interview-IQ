@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import type { CategoryStats } from '@/types/api'
 
-type Props = { stats: CategoryStats[] }
+type Props = { stats: CategoryStats[]; maxHeight?: number }
 
 function barColor(s: number) {
   if (s >= 70) return '#10b981' // emerald-500
@@ -24,7 +24,7 @@ type BarEntry = {
   problemCount: number
 }
 
-export default function CategoryBarChart({ stats }: Props) {
+export default function CategoryBarChart({ stats, maxHeight }: Props) {
   const ready = [...stats]
     .filter((s) => s.score_ready)
     .sort((a, b) => (b.strength ?? 0) - (a.strength ?? 0))
@@ -50,7 +50,7 @@ export default function CategoryBarChart({ stats }: Props) {
 
   return (
     <div className="space-y-3">
-      <ResponsiveContainer width="100%" height={data.length * 34 + 20}>
+      <ResponsiveContainer width="100%" height={maxHeight != null ? Math.min(data.length * 34 + 20, maxHeight) : data.length * 34 + 20}>
         <BarChart
           data={data}
           layout="vertical"

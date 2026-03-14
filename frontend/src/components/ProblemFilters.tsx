@@ -1,4 +1,5 @@
-import { X, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
+import { X, ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -102,6 +103,41 @@ export function MultiSelect({
   )
 }
 
+/** Reusable checkbox list used inside the mobile all-filters panel. */
+function CheckboxList({
+  options,
+  selected,
+  onChange,
+}: {
+  options: string[]
+  selected: string[]
+  onChange: (v: string[]) => void
+}) {
+  const toggle = (val: string) =>
+    onChange(selected.includes(val) ? selected.filter((s) => s !== val) : [...selected, val])
+  return (
+    <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+      {options.map((opt) => (
+        <div
+          key={opt}
+          className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-muted/50 cursor-pointer"
+          onClick={() => toggle(opt)}
+        >
+          <Checkbox
+            id={`mob-${opt}`}
+            checked={selected.includes(opt)}
+            onClick={(e) => e.stopPropagation()}
+            onCheckedChange={() => toggle(opt)}
+          />
+          <Label htmlFor={`mob-${opt}`} className="text-xs cursor-pointer capitalize" onClick={(e) => e.stopPropagation()}>
+            {opt}
+          </Label>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function ProblemFilters({
   nameSearch, onNameSearch,
   dateRange, onDateRangeChange,
@@ -110,9 +146,17 @@ export default function ProblemFilters({
   scoreRange, onScoreRangeChange,
   hasFilters, onClear,
 }: Props) {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const activeCount =
+    (selectedCategories.length > 0 ? 1 : 0) +
+    (selectedDifficulties.length > 0 ? 1 : 0) +
+    (dateRange ? 1 : 0) +
+    (scoreRange ? 1 : 0)
+
   return (
     <div className="space-y-2">
-      {/* Row 1: name search */}
+      {/* Search — always visible */}
       <Input
         placeholder="Search by problem name…"
         value={nameSearch}
@@ -121,8 +165,103 @@ export default function ProblemFilters({
         maxLength={200}
       />
 
-      {/* Row 2: filter controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* ── Mobile: single "Filters" popover ── */}
+      <div className="flex items-center gap-2 sm:hidden">
+        <Popover open={mobileOpen} onOpenChange={setMobileOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Filters
+              {activeCount > 0 && (
+                <span className="ml-0.5 rounded bg-primary/15 px-1 text-primary font-medium">
+                  {activeCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3 space-y-4" align="start">
+            {/* Categories */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category</p>
+              <CheckboxList options={[...CATEGORIES]} selected={selectedCategories} onChange={onCategoriesChange} />
+            </div>
+
+            <Separator />
+
+            {/* Difficulty */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Difficulty</p>
+              <CheckboxList options={DIFFICULTIES} selected={selectedDifficulties} onChange={onDifficultiesChange} />
+            </div>
+
+            <Separator />
+
+            {/* Date range */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date range</p>
+              <Select
+                value={dateRange || '__all__'}
+                onValueChange={(v) => onDateRangeChange(v === '__all__' ? '' : v as DateRangeValue)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="All time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__" className="text-xs">All time</SelectItem>
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Score range */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Score</p>
+              <Select
+                value={scoreRange || '__all__'}
+                onValueChange={(v) => onScoreRangeChange(v === '__all__' ? '' : v as ScoreRangeValue)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Any score" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__" className="text-xs">Any score</SelectItem>
+                  {SCORE_RANGE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {hasFilters && (
+              <>
+                <Separator />
+                <Button
+                  variant="ghost" size="sm"
+                  className="h-8 w-full text-xs text-muted-foreground gap-1"
+                  onClick={() => { onClear(); setMobileOpen(false) }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear all filters
+                </Button>
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        {hasFilters && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground gap-1" onClick={onClear}>
+            <X className="w-3.5 h-3.5" />
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {/* ── Desktop: separate filter controls ── */}
+      <div className="hidden sm:flex flex-wrap items-center gap-2">
         <MultiSelect
           label="Category"
           options={[...CATEGORIES]}
@@ -138,7 +277,6 @@ export default function ProblemFilters({
 
         <Separator orientation="vertical" className="h-5" />
 
-        {/* Date range preset select */}
         <Select
           value={dateRange || '__all__'}
           onValueChange={(v) => onDateRangeChange(v === '__all__' ? '' : v as DateRangeValue)}
@@ -158,7 +296,6 @@ export default function ProblemFilters({
           </SelectContent>
         </Select>
 
-        {/* Score range preset select */}
         <Select
           value={scoreRange || '__all__'}
           onValueChange={(v) => onScoreRangeChange(v === '__all__' ? '' : v as ScoreRangeValue)}

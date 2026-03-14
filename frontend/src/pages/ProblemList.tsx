@@ -250,7 +250,37 @@ export default function ProblemList() {
         </div>
       ) : (
         <div className={`space-y-4 transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none select-none' : 'opacity-100'}`}>
-          <div className="rounded-lg border border-border/60 overflow-hidden">
+
+          {/* ── Mobile list (no table, no min-width) ── */}
+          <div className="sm:hidden rounded-lg border border-border/60 divide-y divide-border/60">
+            {problems.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 cursor-pointer"
+                onClick={() => navigate(`/problems/${p.id}`)}
+              >
+                <div className="min-w-0 mr-3">
+                  <p className="text-sm font-medium truncate">{p.name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${DIFFICULTY_STYLES[p.difficulty ?? ''] ?? ''}`}>
+                      {p.difficulty}
+                    </span>
+                    {nameCounts[p.name ?? ''] > 1 && latestIds.has(p.id ?? -1) && (
+                      <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                        Latest
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className={`font-mono text-sm font-semibold shrink-0 ${scoreColor(p.score ?? 0)}`}>
+                  {p.score}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Desktop table ── */}
+          <div className="hidden sm:block rounded-lg border border-border/60 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">

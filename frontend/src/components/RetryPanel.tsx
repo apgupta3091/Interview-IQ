@@ -25,7 +25,71 @@ type RankedProblem = {
   priority: number;
 };
 
-export default function RetryPanel() {
+function RetryPanelBody({ items, loading }: { items: Problem[]; loading: boolean }) {
+  return (
+    <>
+      {/* Problem list */}
+      <div className="flex-1 overflow-y-auto">
+        {loading && (
+          <p className="text-xs text-muted-foreground px-4 py-4">Loading…</p>
+        )}
+
+        {!loading && items.length === 0 && (
+          <p className="text-xs text-muted-foreground px-4 py-4 leading-relaxed">
+            No problems to retry yet — keep solving!
+          </p>
+        )}
+
+        {!loading &&
+          items.map((p) => (
+            <Link
+              key={p.id}
+              to={`/problems/${p.id}`}
+              className="block px-4 py-3 border-b border-sidebar-border/50 hover:bg-sidebar-accent group transition-colors"
+            >
+              {/* Problem name */}
+              <p className="text-xs font-medium text-sidebar-foreground group-hover:text-primary truncate leading-snug">
+                {p.name}
+              </p>
+
+              {/* Difficulty + score badge */}
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span
+                  className={`text-[10px] font-medium capitalize leading-none ${difficultyColor(p.difficulty)}`}
+                >
+                  {p.difficulty}
+                </span>
+                <span
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none ${scoreColor(p.score ?? 0)}`}
+                >
+                  {p.score}
+                </span>
+              </div>
+
+              {/* Categories */}
+              {p.categories && p.categories.length > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                  {p.categories.slice(0, 2).join(", ")}
+                  {p.categories.length > 2 ? "…" : ""}
+                </p>
+              )}
+            </Link>
+          ))}
+      </div>
+
+      {/* Footer hint */}
+      {!loading && items.length > 0 && (
+        <div className="px-4 py-3 border-t border-sidebar-border shrink-0">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Sorted by score × category weakness
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function RetryPanel({ asSheet = false }: { asSheet?: boolean }) {
   const [items, setItems] = useState<Problem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +152,10 @@ export default function RetryPanel() {
     };
   }, []);
 
+  if (asSheet) {
+    return <RetryPanelBody items={items} loading={loading} />;
+  }
+
   return (
     <aside className="fixed right-0 top-0 h-screen w-56 border-l bg-sidebar flex flex-col z-30">
       {/* Header */}
@@ -95,64 +163,7 @@ export default function RetryPanel() {
         <RefreshCw className="w-4 h-4 text-primary shrink-0" />
         <span className="font-semibold text-sm tracking-tight">Retry List</span>
       </div>
-
-      {/* Problem list */}
-      <div className="flex-1 overflow-y-auto">
-        {loading && (
-          <p className="text-xs text-muted-foreground px-4 py-4">Loading…</p>
-        )}
-
-        {!loading && items.length === 0 && (
-          <p className="text-xs text-muted-foreground px-4 py-4 leading-relaxed">
-            No problems to retry yet — keep solving!
-          </p>
-        )}
-
-        {!loading &&
-          items.map((p) => (
-            <Link
-              key={p.id}
-              to={`/problems/${p.id}`}
-              className="block px-4 py-3 border-b border-sidebar-border/50 hover:bg-sidebar-accent group transition-colors"
-            >
-              {/* Problem name */}
-              <p className="text-xs font-medium text-sidebar-foreground group-hover:text-primary truncate leading-snug">
-                {p.name}
-              </p>
-
-              {/* Difficulty + score badge */}
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span
-                  className={`text-[10px] font-medium capitalize leading-none ${difficultyColor(p.difficulty)}`}
-                >
-                  {p.difficulty}
-                </span>
-                <span
-                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none ${scoreColor(p.score ?? 0)}`}
-                >
-                  {p.score}
-                </span>
-              </div>
-
-              {/* Categories */}
-              {p.categories && p.categories.length > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-1 truncate">
-                  {p.categories.slice(0, 2).join(", ")}
-                  {p.categories.length > 2 ? "…" : ""}
-                </p>
-              )}
-            </Link>
-          ))}
-      </div>
-
-      {/* Footer hint */}
-      {!loading && items.length > 0 && (
-        <div className="px-4 py-3 border-t border-sidebar-border shrink-0">
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            Sorted by score × category weakness
-          </p>
-        </div>
-      )}
+      <RetryPanelBody items={items} loading={loading} />
     </aside>
   );
 }

@@ -234,7 +234,8 @@ export default function ProblemDetail() {
             </Card>
 
             <div className="rounded-lg border border-border/60 overflow-hidden">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[380px]">
                 <thead>
                   <tr className="bg-muted/30 text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium">Date</th>
@@ -264,6 +265,7 @@ export default function ProblemDetail() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}

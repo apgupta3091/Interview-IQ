@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
@@ -26,6 +27,7 @@ function difficultyClass(d: string) {
 
 export default function Dashboard() {
   const tier = useBillingTier()
+  const isMobile = useIsMobile()
   const navigate = useNavigate()
   const [stats, setStats] = useState<CategoryStats[]>([])
   const [weakest, setWeakest] = useState<WeakestResult | null>(null)
@@ -139,8 +141,8 @@ export default function Dashboard() {
                 </p>
                 <ul className="mt-2 space-y-1">
                   {weakest.recommendations?.map((r) => (
-                    <li key={r} className="text-sm text-muted-foreground flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0" />
+                    <li key={r} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0 mt-[0.45rem]" />
                       {r}
                     </li>
                   ))}
@@ -202,8 +204,8 @@ export default function Dashboard() {
       {/* Two-column charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Radar — shape at a glance */}
-        <Card className="border-border/60">
+        {/* Radar — shape at a glance (hidden on mobile: too many labels to fit) */}
+        <Card className="border-border/60 hidden sm:block">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Skill Radar
@@ -222,7 +224,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryBarChart stats={stats} />
+            <CategoryBarChart stats={stats} maxHeight={isMobile ? 360 : undefined} />
           </CardContent>
         </Card>
 
