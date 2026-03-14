@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { Loader2, Sparkles, X } from 'lucide-react'
+import { Lock, Loader2, Sparkles, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CATEGORIES } from '@/lib/constants'
 import { api } from '@/lib/api'
+import { useBillingTier } from '@/hooks/useBillingTier'
 import type { ApiError, CategoryRec, RecommendationParams } from '@/types/api'
 
 function strengthBadgeClass(strength: number) {
@@ -90,6 +92,8 @@ function LoadingSkeleton() {
 }
 
 export default function Recommendations() {
+  const tier = useBillingTier()
+
   // Draft form state (not yet applied)
   const [draftCategory, setDraftCategory] = useState('')
   const [draftLimit, setDraftLimit] = useState('3')
@@ -131,6 +135,33 @@ export default function Recommendations() {
   }
 
   const hasFilters = !!draftCategory || draftLimit !== '3'
+
+  if (tier === 'free') {
+    return (
+      <div className="space-y-6 animate-fade-up">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            AI-powered problem suggestions tailored to your weak spots
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center rounded-lg border border-border/60">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+            <Lock className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-semibold">Pro feature</p>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              AI-powered recommendations are available on the Pro plan.
+            </p>
+          </div>
+          <Button asChild size="sm">
+            <Link to="/pricing">Upgrade to Pro</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-fade-up">

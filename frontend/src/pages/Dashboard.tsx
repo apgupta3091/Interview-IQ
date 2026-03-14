@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
 import { AlertTriangle, Info, Loader2, Sparkles, TrendingUp } from 'lucide-react'
@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import CategoryBarChart from '@/components/CategoryBarChart'
 import CategoryRadarChart from '@/components/CategoryRadarChart'
 import { api } from '@/lib/api'
+import { useBillingTier } from '@/hooks/useBillingTier'
 import type { CategoryRec, CategoryStats, WeakestResult, ApiError } from '@/types/api'
 
 function strengthColor(s: number) {
@@ -24,6 +25,8 @@ function difficultyClass(d: string) {
 }
 
 export default function Dashboard() {
+  const tier = useBillingTier()
+  const navigate = useNavigate()
   const [stats, setStats] = useState<CategoryStats[]>([])
   const [weakest, setWeakest] = useState<WeakestResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,6 +52,10 @@ export default function Dashboard() {
   }, [])
 
   function handleAIClick() {
+    if (tier === 'free') {
+      navigate('/pricing')
+      return
+    }
     if (!weakest?.category) return
     setPopoverOpen(true)
     setAiRec(null)
@@ -148,7 +155,7 @@ export default function Dashboard() {
                   size="icon"
                   className="h-6 w-6 shrink-0 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
                   onClick={handleAIClick}
-                  title="Get AI recommendations"
+                  title={tier === 'free' ? 'Upgrade to Pro for AI recommendations' : 'Get AI recommendations'}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                 </Button>
