@@ -14,10 +14,10 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   'Unlimited problem logging',
+  'Score decay tracking',
+  'Category radar chart',
+  'Weakest category detection',
   'AI-powered study recommendations',
-  'Advanced search & filters',
-  'Export to CSV / JSON',
-  'Streak tracking',
   'Priority support',
 ]
 
@@ -51,7 +51,7 @@ export default function Pricing() {
         </Button>
         <h1 className="text-2xl font-bold tracking-tight">Upgrade to Pro</h1>
         <p className="text-sm text-muted-foreground">
-          Unlimited logging and AI-powered study recommendations.
+          Unlimited problem logging, AI-powered study recommendations, and priority support.
         </p>
       </div>
 
