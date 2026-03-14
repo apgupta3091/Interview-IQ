@@ -61,6 +61,10 @@ func (s *categoryService) GetStats(ctx context.Context, userID int) ([]models.Ca
 		buckets[rs.Category].count++
 	}
 
+	// minProblemsForScore is the minimum number of problems in a category
+	// required before we consider the strength score meaningful.
+	const minProblemsForScore = 3
+
 	stats := make([]models.CategoryStats, 0, len(buckets))
 	for cat, a := range buckets {
 		avg := min(math.Round((a.total/float64(a.count))*10)/10, 100)
@@ -68,6 +72,7 @@ func (s *categoryService) GetStats(ctx context.Context, userID int) ([]models.Ca
 			Category:     cat,
 			Strength:     avg,
 			ProblemCount: a.count,
+			ScoreReady:   a.count >= minProblemsForScore,
 		})
 	}
 	return stats, nil
@@ -79,12 +84,19 @@ func (s *categoryService) GetWeakest(ctx context.Context, userID int) (models.We
 		return models.WeakestResult{}, err
 	}
 
-	if len(stats) == 0 {
+	// Only rank categories that have enough problems for a meaningful score.
+	ready := make([]models.CategoryStats, 0, len(stats))
+	for _, st := range stats {
+		if st.ScoreReady {
+			ready = append(ready, st)
+		}
+	}
+	if len(ready) == 0 {
 		return models.WeakestResult{}, ErrNoProblems
 	}
 
-	weakest := stats[0]
-	for _, st := range stats[1:] {
+	weakest := ready[0]
+	for _, st := range ready[1:] {
 		if st.Strength < weakest.Strength {
 			weakest = st
 		}

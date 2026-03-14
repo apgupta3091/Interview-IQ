@@ -33,6 +33,9 @@ type CategoryStats struct {
 	Category     string
 	Strength     float64
 	ProblemCount int
+	// ScoreReady is true when the category has at least 3 submitted problems,
+	// which is the minimum needed for a meaningful strength score.
+	ScoreReady bool
 }
 
 type WeakestResult struct {

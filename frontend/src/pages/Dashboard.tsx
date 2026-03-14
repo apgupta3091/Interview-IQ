@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { AlertTriangle, Loader2, Sparkles, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Info, Loader2, Sparkles, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -101,6 +101,18 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Your interview prep skill overview</p>
       </div>
+
+      {/* Notice when problems exist but no category has 3+ submissions yet */}
+      {stats.length > 0 && !weakest?.category && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3">
+          <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            Strength scores aren't calculated yet. Submit at least{' '}
+            <span className="font-medium text-foreground">3 problems per category</span> to unlock
+            category scores and the weakest-area highlight.
+          </p>
+        </div>
+      )}
 
       {/* Weakest category */}
       {weakest?.category && (

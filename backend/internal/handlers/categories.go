@@ -16,6 +16,9 @@ type categoryStatsResponse struct {
 	Category     string  `json:"category"`
 	Strength     float64 `json:"strength"`
 	ProblemCount int     `json:"problem_count"`
+	// ScoreReady is false when the category has fewer than 3 problems and the
+	// strength value should not be treated as a reliable score yet.
+	ScoreReady bool `json:"score_ready"`
 }
 
 type weakestResponse struct {
@@ -49,6 +52,7 @@ func (h *CategoryHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 			Category:     s.Category,
 			Strength:     s.Strength,
 			ProblemCount: s.ProblemCount,
+			ScoreReady:   s.ScoreReady,
 		}
 	}
 	writeJSON(w, http.StatusOK, resp)

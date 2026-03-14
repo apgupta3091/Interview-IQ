@@ -265,6 +265,7 @@ export interface components {
         "handlers.categoryStatsResponse": {
             category?: string;
             problem_count?: number;
+            score_ready?: boolean;
             strength?: number;
         };
         "handlers.errorResponse": {
