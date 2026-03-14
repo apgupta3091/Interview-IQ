@@ -24,4 +24,16 @@ client.interceptors.request.use(async (config) => {
   return config
 })
 
+// On 401, sign out via Clerk and redirect to login.
+client.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await window.Clerk?.signOut?.()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default client

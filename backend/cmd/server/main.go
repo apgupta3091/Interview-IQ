@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 	"time"
 	_ "time/tzdata" // embed IANA tz data so America/New_York works inside Docker
 
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -45,6 +48,17 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
+	// Initialise Sentry — captures panics and errors in production.
+	// APP_ENV should be "production" or "development".
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              os.Getenv("SENTRY_DSN"),
+		Environment:      os.Getenv("APP_ENV"),
+		TracesSampleRate: 0.1,
+	}); err != nil {
+		log.Printf("sentry init: %v", err)
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	// Initialise Clerk SDK — must be called before any token verification.
 	clerk.SetKey(os.Getenv("CLERK_SECRET_KEY"))
@@ -91,8 +105,14 @@ func main() {
 
 	r := chi.NewRouter()
 
+	// Build allowed origins from env + always include local dev.
+	allowedOrigins := []string{"http://localhost:5173"}
+	if frontendURL != "" && frontendURL != "http://localhost:5173" {
+		allowedOrigins = append(allowedOrigins, frontendURL)
+	}
+
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: false,
@@ -101,11 +121,14 @@ func main() {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
+	// Sentry middleware: captures panics and reports them before Recoverer swallows them.
+	sentryHandler := sentryhttp.New(sentryhttp.Options{Repanic: true})
+	r.Use(sentryHandler.Handle)
 	// Global per-IP rate limit: 60 req/min sustained, burst of 20.
 	// Applied before auth so unauthenticated abuse is stopped early.
 	r.Use(middleware.RateLimitByIP(rate.Every(time.Second), 20))
 
-	r.Get("/health", healthHandler)
+	r.Get("/health", healthHandler(database))
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	r.Route("/api", func(r chi.Router) {
@@ -162,10 +185,17 @@ func main() {
 	}
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "ok",
-	})
+// healthHandler returns a closure that checks DB connectivity before responding.
+func healthHandler(database *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := database.PingContext(r.Context()); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]string{"error": "db unavailable"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
 }
