@@ -112,6 +112,71 @@ func TestGetWeakest_FindsMin(t *testing.T) {
 	}
 }
 
+// TestGetStats_ScoreReady_BelowThreshold verifies that when the user has ≤20
+// problems total, every category with at least one attempt is score-ready.
+func TestGetStats_ScoreReady_BelowThreshold(t *testing.T) {
+	now := time.Now()
+	// 3 total problems, well under the 20-problem threshold.
+	svc := NewCategoryService(&mockCategoryRepo{
+		getRawScoresFn: func(_ context.Context, _ int) ([]models.CategoryRawScore, error) {
+			return []models.CategoryRawScore{
+				{Category: "array", Score: 80, SolvedAt: now},
+				{Category: "dp", Score: 60, SolvedAt: now},
+				{Category: "graph", Score: 50, SolvedAt: now},
+			}, nil
+		},
+	})
+
+	stats, err := svc.GetStats(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, s := range stats {
+		if !s.ScoreReady {
+			t.Errorf("expected ScoreReady=true for %s when total problems ≤20, got false", s.Category)
+		}
+	}
+}
+
+// TestGetStats_ScoreReady_AboveThreshold verifies that once the user has >20
+// problems total, a category needs at least 3 problems before ScoreReady=true.
+func TestGetStats_ScoreReady_AboveThreshold(t *testing.T) {
+	now := time.Now()
+	// Build 21 total raw scores: 19 in "array", 2 in "dp".
+	rawScores := make([]models.CategoryRawScore, 0, 21)
+	for i := 0; i < 19; i++ {
+		rawScores = append(rawScores, models.CategoryRawScore{Category: "array", Score: 80, SolvedAt: now})
+	}
+	rawScores = append(rawScores,
+		models.CategoryRawScore{Category: "dp", Score: 60, SolvedAt: now},
+		models.CategoryRawScore{Category: "dp", Score: 70, SolvedAt: now},
+	)
+
+	svc := NewCategoryService(&mockCategoryRepo{
+		getRawScoresFn: func(_ context.Context, _ int) ([]models.CategoryRawScore, error) {
+			return rawScores, nil
+		},
+	})
+
+	stats, err := svc.GetStats(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	statsMap := map[string]models.CategoryStats{}
+	for _, s := range stats {
+		statsMap[s.Category] = s
+	}
+
+	// array has 19 problems (≥3) → ScoreReady should be true.
+	if !statsMap["array"].ScoreReady {
+		t.Errorf("expected ScoreReady=true for array (19 problems), got false")
+	}
+	// dp has only 2 problems (<3) → ScoreReady should be false.
+	if statsMap["dp"].ScoreReady {
+		t.Errorf("expected ScoreReady=false for dp (2 problems when total >20), got true")
+	}
+}
+
 func TestGetWeakest_ErrNoProblems(t *testing.T) {
 	svc := NewCategoryService(&mockCategoryRepo{
 		getRawScoresFn: func(_ context.Context, _ int) ([]models.CategoryRawScore, error) {

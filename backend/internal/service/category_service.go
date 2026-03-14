@@ -61,9 +61,18 @@ func (s *categoryService) GetStats(ctx context.Context, userID int) ([]models.Ca
 		buckets[rs.Category].count++
 	}
 
-	// minProblemsForScore is the minimum number of problems in a category
-	// required before we consider the strength score meaningful.
+	// minProblemsForScore is the per-category minimum required before a
+	// category's strength score is considered meaningful. It only applies once
+	// the user has logged more than totalProblemsThreshold problems overall —
+	// for newer users every category with at least one attempt is score-ready
+	// so the radar and weakest-category features are useful from the start.
 	const minProblemsForScore = 3
+	const totalProblemsThreshold = 20
+
+	scoreReadyMin := 1
+	if len(rawScores) > totalProblemsThreshold {
+		scoreReadyMin = minProblemsForScore
+	}
 
 	stats := make([]models.CategoryStats, 0, len(buckets))
 	for cat, a := range buckets {
@@ -72,7 +81,7 @@ func (s *categoryService) GetStats(ctx context.Context, userID int) ([]models.Ca
 			Category:     cat,
 			Strength:     avg,
 			ProblemCount: a.count,
-			ScoreReady:   a.count >= minProblemsForScore,
+			ScoreReady:   a.count >= scoreReadyMin,
 		})
 	}
 	return stats, nil

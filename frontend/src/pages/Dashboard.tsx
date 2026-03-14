@@ -114,9 +114,10 @@ export default function Dashboard() {
         <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3">
           <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
           <p className="text-sm text-muted-foreground">
-            Strength scores aren't calculated yet. Submit at least{' '}
-            <span className="font-medium text-foreground">3 problems per category</span> to unlock
-            category scores and the weakest-area highlight.
+            Strength scores aren't calculated yet. Log more problems to unlock
+            category scores and the weakest-area highlight. Once you've logged
+            over 20 total, categories need at least{' '}
+            <span className="font-medium text-foreground">3 problems each</span> to count.
           </p>
         </div>
       )}
