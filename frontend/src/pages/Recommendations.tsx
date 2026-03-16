@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { Lock, Loader2, Sparkles, X } from 'lucide-react'
+import { Lock, Loader2, Sparkles, X, Rocket } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,8 @@ import { CATEGORIES } from '@/lib/constants'
 import { api } from '@/lib/api'
 import { useBillingTier } from '@/hooks/useBillingTier'
 import type { ApiError, CategoryRec, RecommendationParams } from '@/types/api'
+
+const COMING_SOON = true
 
 function strengthBadgeClass(strength: number) {
   if (strength >= 70) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -92,6 +94,30 @@ function LoadingSkeleton() {
 }
 
 export default function Recommendations() {
+  if (COMING_SOON) {
+    return (
+      <div className="space-y-6 animate-fade-up">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            AI-powered problem suggestions tailored to your weak spots
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center rounded-lg border border-border/60">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+            <Rocket className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-semibold">Coming Soon</p>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              AI-powered recommendations are on their way. Check back soon!
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const tier = useBillingTier()
 
   // Draft form state (not yet applied)
