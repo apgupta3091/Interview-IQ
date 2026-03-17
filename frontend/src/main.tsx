@@ -14,7 +14,8 @@ import ProblemList from '@/pages/ProblemList'
 import ProblemDetail from '@/pages/ProblemDetail'
 import Dashboard from '@/pages/Dashboard'
 import Recommendations from '@/pages/Recommendations'
-import Pricing from '@/pages/Pricing'
+// import Pricing from '@/pages/Pricing'
+// Payments removed — Pricing page disabled. Re-enable when billing is added back.
 import PrivacyPolicy from '@/pages/PrivacyPolicy'
 import Terms from '@/pages/Terms'
 import './index.css'
@@ -53,7 +54,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/problems/:id" element={<ProblemDetail />} />
                 <Route path="/problems/new" element={<LogProblem />} />
                 <Route path="/recommendations" element={<Recommendations />} />
-                <Route path="/pricing" element={<Pricing />} />
+                {/* Payments removed — pricing route disabled. Re-enable when billing is added back. */}
+                {/* <Route path="/pricing" element={<Pricing />} /> */}
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>

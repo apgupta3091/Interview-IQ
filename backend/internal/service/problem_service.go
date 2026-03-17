@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,7 +14,8 @@ import (
 const maxNameLen = 200
 
 // freeTierProblemLimit is the maximum number of problems a free-tier user can log.
-const freeTierProblemLimit = 20
+// Payments removed — re-enable when billing is added back.
+// const freeTierProblemLimit = 20
 
 // escapeLikePattern escapes LIKE/ILIKE metacharacters so a raw user string
 // can be safely used as a substring pattern (repo wraps it in % wildcards).
@@ -43,9 +43,9 @@ var validDifficulties = map[string]bool{
 type LogProblemInput struct {
 	Name, Difficulty, SolutionType string
 	Notes                          string
-	// Tier is the user's subscription tier ("free" or "pro"), set by the handler
-	// from the request context. Used to enforce the free-tier problem cap.
-	Tier                    string
+	// Tier is the user's subscription tier ("free" or "pro").
+	// Payments removed — field kept for future re-enablement but not enforced.
+	// Tier                    string
 	Categories              []string
 	Attempts, TimeTakenMins int
 	LookedAtSolution        bool
@@ -125,16 +125,17 @@ func (s *problemService) Log(ctx context.Context, userID int, req LogProblemInpu
 		req.SolutionType = "none"
 	}
 
-	// Enforce the free-tier problem cap before inserting.
-	if req.Tier == "" || req.Tier == "free" {
-		count, err := s.problems.CountByUser(ctx, userID)
-		if err != nil {
-			return models.Problem{}, fmt.Errorf("Log: check free tier cap: %w", err)
-		}
-		if count >= freeTierProblemLimit {
-			return models.Problem{}, ErrFreeTierLimitReached
-		}
-	}
+	// Free-tier problem cap removed — all users have unlimited access.
+	// Re-enable when billing is added back:
+	// if req.Tier == "" || req.Tier == "free" {
+	// 	count, err := s.problems.CountByUser(ctx, userID)
+	// 	if err != nil {
+	// 		return models.Problem{}, fmt.Errorf("Log: check free tier cap: %w", err)
+	// 	}
+	// 	if count >= freeTierProblemLimit {
+	// 		return models.Problem{}, ErrFreeTierLimitReached
+	// 	}
+	// }
 
 	score := models.ComputeScore(req.Attempts, req.LookedAtSolution, req.SolutionType)
 	solvedAt := time.Now()

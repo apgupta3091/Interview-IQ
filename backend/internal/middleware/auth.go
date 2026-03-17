@@ -14,12 +14,12 @@ type contextKey string
 
 const (
 	UserIDKey contextKey = "userID"
-	TierKey   contextKey = "tier"
+	// TierKey contextKey = "tier"
+	// Payments removed — tier no longer injected into context. Re-enable when billing is added back.
 )
 
-// ClerkAuthenticate verifies Clerk-issued JWTs, auto-provisions an internal
-// integer user ID on first sign-in, and injects both the user ID and
-// subscription tier into the request context.
+// ClerkAuthenticate verifies Clerk-issued JWTs and auto-provisions an internal
+// integer user ID on first sign-in.
 func ClerkAuthenticate(users repository.UserRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,16 +38,17 @@ func ClerkAuthenticate(users repository.UserRepository) func(http.Handler) http.
 			}
 
 			// claims.Subject is the Clerk user ID (e.g. "user_abc123").
-			// GetOrCreateByClerkID maps it to our internal integer user_id and also
-			// returns the subscription tier so both are available in a single query.
-			userID, tier, err := users.GetOrCreateByClerkID(r.Context(), claims.Subject)
+			// GetOrCreateByClerkID maps it to our internal integer user_id.
+			// The second return value (subscription tier) is ignored while payments are disabled.
+			userID, _, err := users.GetOrCreateByClerkID(r.Context(), claims.Subject)
 			if err != nil {
 				http.Error(w, `{"error":"failed to resolve user"}`, http.StatusInternalServerError)
 				return
 			}
 
 			ctx := context.WithValue(r.Context(), UserIDKey, userID)
-			ctx = context.WithValue(ctx, TierKey, tier)
+			// Payments removed — tier no longer stored in context. Re-enable when billing is added back:
+			// ctx = context.WithValue(ctx, TierKey, tier)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -61,10 +62,12 @@ func UserIDFromContext(ctx context.Context) int {
 
 // TierFromContext extracts the user's subscription tier from the request context.
 // Returns "free" when no tier is present (safe default).
+// Payments removed — always returns "free" until billing is re-enabled.
 func TierFromContext(ctx context.Context) string {
-	tier, _ := ctx.Value(TierKey).(string)
-	if tier == "" {
-		return "free"
-	}
-	return tier
+	// tier, _ := ctx.Value(TierKey).(string)
+	// if tier == "" {
+	// 	return "free"
+	// }
+	// return tier
+	return "free"
 }

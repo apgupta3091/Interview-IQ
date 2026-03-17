@@ -48,7 +48,7 @@ func main() {
 	problemRepo := repository.NewProblemRepo(database)
 
 	// Upsert the user row — safe to run repeatedly.
-	userID, err := userRepo.GetOrCreateByClerkID(ctx, clerkUserID)
+	userID, _, err := userRepo.GetOrCreateByClerkID(ctx, clerkUserID)
 	if err != nil {
 		log.Fatalf("upsert dev user: %v", err)
 	}

@@ -1,5 +1,10 @@
 package service
 
+// Billing/Stripe logic is preserved here but disabled.
+// Payments are removed for now — all users get full access.
+// Re-enable by uncommenting this file and wiring it back into main.go.
+
+/*
 import (
 	"context"
 	"encoding/json"
@@ -153,3 +158,4 @@ func (s *billingService) HandleWebhook(ctx context.Context, payload []byte, sigH
 
 	return nil
 }
+*/

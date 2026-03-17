@@ -84,7 +84,8 @@ func main() {
 	problemSvc := service.NewProblemService(problemRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
 	recSvc := service.NewRecommendationService(categorySvc, problemSvc, openaiKey)
-	billingSvc := service.NewBillingService(userRepo, os.Getenv("STRIPE_SECRET_KEY"))
+	// Payments removed — BillingService disabled. Re-enable when billing is added back:
+	// billingSvc := service.NewBillingService(userRepo, os.Getenv("STRIPE_SECRET_KEY"))
 	noteSvc := service.NewNoteService(noteRepo)
 
 	frontendURL := os.Getenv("FRONTEND_URL")
@@ -97,14 +98,15 @@ func main() {
 	recHandler := &handlers.RecommendationHandler{Service: recSvc}
 	lcHandler := &handlers.LeetCodeHandler{Repo: lcRepo}
 	noteHandler := &handlers.NoteHandler{Notes: noteSvc, Problems: problemSvc}
-	billingHandler := &handlers.BillingHandler{
-		Service:       billingSvc,
-		Problems:      problemSvc,
-		WebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
-		PriceMonthly:  os.Getenv("STRIPE_PRICE_MONTHLY"),
-		PriceAnnual:   os.Getenv("STRIPE_PRICE_ANNUAL"),
-		FrontendURL:   frontendURL,
-	}
+	// Payments removed — BillingHandler disabled. Re-enable when billing is added back:
+	// billingHandler := &handlers.BillingHandler{
+	// 	Service:       billingSvc,
+	// 	Problems:      problemSvc,
+	// 	WebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
+	// 	PriceMonthly:  os.Getenv("STRIPE_PRICE_MONTHLY"),
+	// 	PriceAnnual:   os.Getenv("STRIPE_PRICE_ANNUAL"),
+	// 	FrontendURL:   frontendURL,
+	// }
 
 	r := chi.NewRouter()
 
@@ -135,8 +137,8 @@ func main() {
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	r.Route("/api", func(r chi.Router) {
-		// Stripe webhook: unauthenticated — Stripe verifies via signature header.
-		r.Post("/webhooks/stripe", billingHandler.HandleWebhook)
+		// Payments removed — Stripe webhook disabled. Re-enable when billing is added back:
+		// r.Post("/webhooks/stripe", billingHandler.HandleWebhook)
 
 		// All other API routes require a valid Clerk JWT.
 		r.Group(func(r chi.Router) {
@@ -158,9 +160,10 @@ func main() {
 			r.Get("/categories/weakest", categoryHandler.GetWeakest)
 			r.Get("/leetcode-problems/search", lcHandler.Search)
 			r.Get("/recommendations", recHandler.GetRecommendations)
-			r.Get("/billing/status", billingHandler.GetStatus)
-			r.Post("/billing/checkout", billingHandler.CreateCheckoutSession)
-			r.Post("/billing/portal", billingHandler.CreatePortalSession)
+			// Payments removed — billing routes disabled. Re-enable when billing is added back:
+			// r.Get("/billing/status", billingHandler.GetStatus)
+			// r.Post("/billing/checkout", billingHandler.CreateCheckoutSession)
+			// r.Post("/billing/portal", billingHandler.CreatePortalSession)
 		})
 	})
 

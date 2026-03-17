@@ -1,5 +1,10 @@
 package handlers
 
+// Billing/Stripe handler logic is preserved here but disabled.
+// Payments are removed for now — all users get full access.
+// Re-enable by uncommenting this file and wiring it back into main.go.
+
+/*
 import (
 	"encoding/json"
 	"io"
@@ -113,3 +118,4 @@ func (h *BillingHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+*/

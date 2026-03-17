@@ -1,3 +1,11 @@
+// Payments removed — UpgradeBanner disabled. All users have full access.
+// Re-enable when billing is added back.
+
+export default function UpgradeBanner() {
+  return null
+}
+
+/*
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap } from 'lucide-react'
@@ -41,3 +49,4 @@ export default function UpgradeBanner() {
     </div>
   )
 }
+*/
