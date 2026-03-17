@@ -10,8 +10,8 @@ import RetryPanel from '@/components/RetryPanel'
 import UpgradeBanner from '@/components/UpgradeBanner'
 import { useIsMobile } from '@/hooks/use-mobile'
 
-// Must match the RetryPanel's w-56 (14rem)
-const RETRY_PANEL_WIDTH = '14rem'
+// Must match the RetryPanel width
+const RETRY_PANEL_WIDTH = '18rem'
 
 function AppShell() {
   const { open, isMobile: sidebarIsMobile } = useSidebar()
@@ -24,7 +24,7 @@ function AppShell() {
         className="flex flex-1 flex-col min-h-screen transition-[margin-left] duration-200 ease-linear"
         style={{
           // On mobile the sidebar renders as an overlay Sheet — no left margin needed.
-          marginLeft: (!sidebarIsMobile && open) ? 'var(--sidebar-width, 16rem)' : '0',
+          marginLeft: sidebarIsMobile ? '0' : (open ? 'var(--sidebar-width, 16rem)' : RETRY_PANEL_WIDTH),
           marginRight: isMobile ? 0 : RETRY_PANEL_WIDTH,
         }}
       >

@@ -14,8 +14,15 @@ import (
 	"github.com/apgupta3091/interview-iq/internal/service"
 )
 
+// recCacheInvalidator is a narrow interface so ProblemHandler doesn't depend
+// on the full RecommendationService.
+type recCacheInvalidator interface {
+	InvalidateCache(userID int)
+}
+
 type ProblemHandler struct {
-	Service service.ProblemService
+	Service  service.ProblemService
+	RecCache recCacheInvalidator
 }
 
 type logProblemRequest struct {
@@ -216,6 +223,12 @@ func (h *ProblemHandler) LogProblem(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, http.StatusInternalServerError, "failed to log problem")
 		return
+	}
+
+	// Invalidate the recommendation cache: the new problem changes category
+	// scores, so the next AI request should reflect the updated state.
+	if h.RecCache != nil {
+		h.RecCache.InvalidateCache(userID)
 	}
 
 	writeJSON(w, http.StatusCreated, toProblemResponse(p))

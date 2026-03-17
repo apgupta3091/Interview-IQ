@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apgupta3091/interview-iq/internal/models"
@@ -49,12 +51,24 @@ type RecommendationResult struct {
 // RecommendationService generates AI-powered problem recommendations.
 type RecommendationService interface {
 	GetRecommendations(ctx context.Context, userID int, params RecommendationParams) (RecommendationResult, error)
+	// InvalidateCache drops all cached results for userID so the next request
+	// triggers a fresh OpenAI call. Call this whenever a user logs a new problem.
+	InvalidateCache(userID int)
+}
+
+type recCacheEntry struct {
+	result RecommendationResult
 }
 
 type recommendationService struct {
 	categories CategoryService
 	problems   ProblemService
 	apiKey     string
+
+	// cacheMu guards cache. The lock is not held during the OpenAI call so
+	// concurrent requests for distinct keys can proceed in parallel.
+	cacheMu sync.Mutex
+	cache   map[string]recCacheEntry
 }
 
 // NewRecommendationService creates a RecommendationService backed by OpenAI gpt-4o-mini.
@@ -65,6 +79,36 @@ func NewRecommendationService(categories CategoryService, problems ProblemServic
 		categories: categories,
 		problems:   problems,
 		apiKey:     apiKey,
+		cache:      make(map[string]recCacheEntry),
+	}
+}
+
+// recCacheKey produces a deterministic string key for the given (userID, params) pair.
+// Categories are sorted so order does not affect cache hits.
+func recCacheKey(userID int, params RecommendationParams) string {
+	cats := make([]string, len(params.Categories))
+	copy(cats, params.Categories)
+	sort.Strings(cats)
+
+	from, to := "", ""
+	if params.DateFrom != nil {
+		from = params.DateFrom.UTC().Format(time.RFC3339)
+	}
+	if params.DateTo != nil {
+		to = params.DateTo.UTC().Format(time.RFC3339)
+	}
+	return fmt.Sprintf("%d|%s|%d|%s|%s", userID, strings.Join(cats, ","), params.Limit, from, to)
+}
+
+// InvalidateCache removes all cached recommendation entries for the given user.
+func (s *recommendationService) InvalidateCache(userID int) {
+	prefix := fmt.Sprintf("%d|", userID)
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	for k := range s.cache {
+		if strings.HasPrefix(k, prefix) {
+			delete(s.cache, k)
+		}
 	}
 }
 
@@ -76,6 +120,16 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 	if params.Limit <= 0 {
 		params.Limit = 3
 	}
+
+	// Return cached result if available. The cache is invalidated when the user
+	// logs a new problem so recommendations stay fresh after score changes.
+	cacheKey := recCacheKey(userID, params)
+	s.cacheMu.Lock()
+	if entry, ok := s.cache[cacheKey]; ok {
+		s.cacheMu.Unlock()
+		return entry.result, nil
+	}
+	s.cacheMu.Unlock()
 
 	// 1. Load all category strengths so we can build meaningful context for the AI.
 	stats, err := s.categories.GetStats(ctx, userID)
@@ -165,6 +219,12 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 			result.Categories[i].Strength = strength
 		}
 	}
+
+	// Store in cache so subsequent requests skip the OpenAI call until the user
+	// logs a new problem (which calls InvalidateCache).
+	s.cacheMu.Lock()
+	s.cache[cacheKey] = recCacheEntry{result: result}
+	s.cacheMu.Unlock()
 
 	return result, nil
 }

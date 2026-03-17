@@ -90,7 +90,7 @@ func main() {
 		frontendURL = "http://localhost:5173"
 	}
 
-	problemHandler := &handlers.ProblemHandler{Service: problemSvc}
+	problemHandler := &handlers.ProblemHandler{Service: problemSvc, RecCache: recSvc}
 	categoryHandler := &handlers.CategoryHandler{Service: categorySvc}
 	recHandler := &handlers.RecommendationHandler{Service: recSvc}
 	lcHandler := &handlers.LeetCodeHandler{Repo: lcRepo}
