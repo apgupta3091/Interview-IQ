@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import CategoryBarChart from '@/components/CategoryBarChart'
 import CategoryRadarChart from '@/components/CategoryRadarChart'
 import { api } from '@/lib/api'
+import { statsCache } from '@/lib/statsCache'
 import { useBillingTier } from '@/hooks/useBillingTier'
 import type { CategoryRec, CategoryStats, WeakestResult, ApiError } from '@/types/api'
 
@@ -29,9 +30,10 @@ export default function Dashboard() {
   const tier = useBillingTier()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
-  const [stats, setStats] = useState<CategoryStats[]>([])
-  const [weakest, setWeakest] = useState<WeakestResult | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cached = statsCache.get()
+  const [stats, setStats] = useState<CategoryStats[]>(cached?.stats ?? [])
+  const [weakest, setWeakest] = useState<WeakestResult | null>(cached?.weakest ?? null)
+  const [loading, setLoading] = useState(cached === null)
 
   // AI popover state
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -40,8 +42,15 @@ export default function Dashboard() {
   const [aiError, setAiError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Skip fetch if we already have cached data
+    if (statsCache.get() !== null) return
+
     Promise.all([api.categories.stats(), api.categories.weakest()])
-      .then(([s, w]) => { setStats(s); setWeakest(w) })
+      .then(([s, w]) => {
+        statsCache.set(s, w)
+        setStats(s)
+        setWeakest(w)
+      })
       .catch((err) => {
         if (axios.isAxiosError(err)) {
           const msg = (err.response?.data as ApiError)?.error ?? 'Failed to load dashboard'

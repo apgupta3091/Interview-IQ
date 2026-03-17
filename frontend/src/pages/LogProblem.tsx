@@ -15,6 +15,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
+import { statsCache } from '@/lib/statsCache'
 import type { ApiError, LeetCodeProblemSuggestion } from '@/types/api'
 import { CATEGORIES } from '@/lib/constants'
 
@@ -135,6 +136,7 @@ export default function LogProblem() {
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       })
       toast.success('Problem logged!')
+      statsCache.invalidate()
       navigate('/problems')
     } catch (err) {
       if (axios.isAxiosError(err)) {

@@ -85,6 +85,7 @@ export default function CategoryRadarChart({ stats, height = 380 }: Props) {
           fillOpacity={0.15}
           strokeWidth={2}
           dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
+          isAnimationActive={false}
         />
       </RadarChart>
     </ResponsiveContainer>

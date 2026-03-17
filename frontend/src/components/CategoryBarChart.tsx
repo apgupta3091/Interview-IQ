@@ -89,7 +89,7 @@ export default function CategoryBarChart({ stats, maxHeight }: Props) {
             axisLine={false}
             tickLine={false}
           />
-          <Bar dataKey="strength" radius={[0, 4, 4, 0]} maxBarSize={14} style={{ cursor: 'default' }}>
+          <Bar dataKey="strength" radius={[0, 4, 4, 0]} maxBarSize={14} isAnimationActive={false} style={{ cursor: 'default' }}>
             {data.map((entry) => (
               <Cell
                 key={entry.category}
