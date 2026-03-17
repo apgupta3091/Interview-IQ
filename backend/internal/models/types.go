@@ -43,3 +43,14 @@ type WeakestResult struct {
 	Strength        float64
 	Recommendations []string
 }
+
+// Note is a standalone user note attached to a problem (keyed by problem name,
+// not by a specific attempt).
+type Note struct {
+	ID          int
+	UserID      int
+	ProblemName string
+	Content     string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}

@@ -77,6 +77,7 @@ func main() {
 	problemRepo := repository.NewProblemRepo(database)
 	categoryRepo := repository.NewCategoryRepo(database)
 	lcRepo := repository.NewLeetCodeProblemRepo(database)
+	noteRepo := repository.NewNoteRepo(database)
 
 	openaiKey := os.Getenv("OPENAI_API_KEY")
 
@@ -84,6 +85,7 @@ func main() {
 	categorySvc := service.NewCategoryService(categoryRepo)
 	recSvc := service.NewRecommendationService(categorySvc, problemSvc, openaiKey)
 	billingSvc := service.NewBillingService(userRepo, os.Getenv("STRIPE_SECRET_KEY"))
+	noteSvc := service.NewNoteService(noteRepo)
 
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
@@ -94,6 +96,7 @@ func main() {
 	categoryHandler := &handlers.CategoryHandler{Service: categorySvc}
 	recHandler := &handlers.RecommendationHandler{Service: recSvc}
 	lcHandler := &handlers.LeetCodeHandler{Repo: lcRepo}
+	noteHandler := &handlers.NoteHandler{Notes: noteSvc, Problems: problemSvc}
 	billingHandler := &handlers.BillingHandler{
 		Service:       billingSvc,
 		Problems:      problemSvc,
@@ -147,6 +150,10 @@ func main() {
 			r.Get("/problems", problemHandler.ListProblems)
 			r.Post("/problems", problemHandler.LogProblem)
 			r.Get("/problems/{problemID}", problemHandler.GetProblem)
+			r.Get("/problems/{problemID}/notes", noteHandler.ListNotes)
+			r.Post("/problems/{problemID}/notes", noteHandler.CreateNote)
+			r.Put("/notes/{noteID}", noteHandler.UpdateNote)
+			r.Delete("/notes/{noteID}", noteHandler.DeleteNote)
 			r.Get("/categories/stats", categoryHandler.GetStats)
 			r.Get("/categories/weakest", categoryHandler.GetWeakest)
 			r.Get("/leetcode-problems/search", lcHandler.Search)

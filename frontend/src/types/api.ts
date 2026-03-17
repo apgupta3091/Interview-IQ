@@ -22,6 +22,20 @@ export type LeetCodeProblemSuggestion = {
   tags: string[];
 };
 
+// --- Problem Notes (hand-written — separate from per-attempt notes) ---
+
+export type ProblemNote = {
+  id: number;
+  problem_name: string;
+  content: string;
+  created_at: string;  // ISO 8601
+  updated_at: string;  // ISO 8601
+};
+
+export type NoteListResponse = {
+  notes: ProblemNote[];
+};
+
 // --- Recommendations (hand-written until Swagger annotations are added) ---
 
 export type ProblemRec = {

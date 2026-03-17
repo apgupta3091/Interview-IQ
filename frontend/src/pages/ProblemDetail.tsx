@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { api } from '@/lib/api'
-import type { Problem, ApiError } from '@/types/api'
+import type { Problem, ProblemNote, ApiError } from '@/types/api'
 
 const DIFFICULTY_STYLES: Record<string, string> = {
   easy:   'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20',
@@ -43,6 +44,15 @@ export default function ProblemDetail() {
   const [history, setHistory] = useState<Problem[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Notes state
+  const [notesList, setNotesList] = useState<ProblemNote[]>([])
+  const [newNoteContent, setNewNoteContent] = useState('')
+  const [addingNote, setAddingNote] = useState(false)
+  const [savingNote, setSavingNote] = useState(false)
+  const [editingNoteID, setEditingNoteID] = useState<number | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const newNoteRef = useRef<HTMLTextAreaElement>(null)
+
   useEffect(() => {
     if (!id) return
     const numId = parseInt(id, 10)
@@ -53,13 +63,17 @@ export default function ProblemDetail() {
       .then(async (p) => {
         setProblem(p)
         // Fetch all attempts with the same name for score history
-        const result = await api.problems.listFiltered({ q: p.name, limit: 100 })
+        const [result, notesResult] = await Promise.all([
+          api.problems.listFiltered({ q: p.name, limit: 100 }),
+          api.notes.list(numId),
+        ])
         const exact = (result.problems ?? [])
           .filter((h) => h.name === p.name)
           .sort((a, b) =>
             new Date(a.solved_at ?? '').getTime() - new Date(b.solved_at ?? '').getTime(),
           )
         setHistory(exact)
+        setNotesList(notesResult.notes ?? [])
       })
       .catch((err: unknown) => {
         if (axios.isAxiosError(err) && err.response?.status === 404) {
@@ -74,6 +88,63 @@ export default function ProblemDetail() {
       })
       .finally(() => setLoading(false))
   }, [id, navigate])
+
+  function handleAddNote() {
+    setAddingNote(true)
+    setTimeout(() => newNoteRef.current?.focus(), 0)
+  }
+
+  function handleCancelAdd() {
+    setAddingNote(false)
+    setNewNoteContent('')
+  }
+
+  async function handleSaveNote() {
+    const numId = parseInt(id ?? '', 10)
+    if (isNaN(numId) || !newNoteContent.trim()) return
+    setSavingNote(true)
+    try {
+      const note = await api.notes.create(numId, newNoteContent.trim())
+      setNotesList((prev) => [...prev, note])
+      setNewNoteContent('')
+      setAddingNote(false)
+    } catch {
+      toast.error('Failed to save note')
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
+  function handleStartEdit(note: ProblemNote) {
+    setEditingNoteID(note.id)
+    setEditContent(note.content)
+  }
+
+  function handleCancelEdit() {
+    setEditingNoteID(null)
+    setEditContent('')
+  }
+
+  async function handleSaveEdit(noteID: number) {
+    if (!editContent.trim()) return
+    try {
+      const updated = await api.notes.update(noteID, editContent.trim())
+      setNotesList((prev) => prev.map((n) => (n.id === noteID ? updated : n)))
+      setEditingNoteID(null)
+      setEditContent('')
+    } catch {
+      toast.error('Failed to update note')
+    }
+  }
+
+  async function handleDeleteNote(noteID: number) {
+    try {
+      await api.notes.delete(noteID)
+      setNotesList((prev) => prev.filter((n) => n.id !== noteID))
+    } catch {
+      toast.error('Failed to delete note')
+    }
+  }
 
   if (loading) {
     return (
@@ -189,16 +260,92 @@ export default function ProblemDetail() {
         </Card>
       </div>
 
-      {/* Notes */}
+      {/* Notes — aggregated across all attempts */}
       <Card className="border-border/60">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Your Notes</CardTitle>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Notes</CardTitle>
+          {!addingNote && (
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={handleAddNote}>
+              <Plus className="w-4 h-4 mr-1" />
+              Add note
+            </Button>
+          )}
         </CardHeader>
-        <CardContent>
-          {problem.notes ? (
-            <p className="text-sm whitespace-pre-wrap">{problem.notes}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground/50 italic">No notes recorded for this attempt.</p>
+        <CardContent className="space-y-3">
+          {notesList.length === 0 && !addingNote && (
+            <p className="text-sm text-muted-foreground/50 italic">No notes yet. Add one to capture your thoughts across all attempts.</p>
+          )}
+          {notesList.map((note) => (
+            <div key={note.id} className="group rounded-md border border-border/40 bg-muted/20 p-3">
+              {editingNoteID === note.id ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={3}
+                    className="text-sm resize-none"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-7 px-2" onClick={() => handleSaveEdit(note.id)}>
+                      <Check className="w-3.5 h-3.5 mr-1" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleCancelEdit}>
+                      <X className="w-3.5 h-3.5 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <p className="text-sm whitespace-pre-wrap flex-1">{note.content}</p>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      onClick={() => handleStartEdit(note)}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDeleteNote(note.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground/50 mt-1">
+                {new Date(note.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+          ))}
+          {addingNote && (
+            <div className="space-y-2">
+              <Textarea
+                ref={newNoteRef}
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                placeholder="Add a note — approaches, gotchas, things to remember…"
+                rows={3}
+                className="text-sm resize-none"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" className="h-7 px-2" onClick={handleSaveNote} disabled={savingNote || !newNoteContent.trim()}>
+                  <Check className="w-3.5 h-3.5 mr-1" />
+                  Save
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleCancelAdd}>
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
