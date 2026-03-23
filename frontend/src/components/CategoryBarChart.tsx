@@ -70,7 +70,7 @@ export default function CategoryBarChart({ stats, maxHeight }: Props) {
             type="category"
             dataKey="category"
             width={90}
-            tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+            tick={({ x, y, payload }: { x: string | number; y: string | number; payload: { value: string } }) => {
               const entry = data.find((d) => d.category === payload.value)
               const muted = !entry?.scoreReady
               return (

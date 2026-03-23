@@ -366,7 +366,7 @@ export default function ProblemDetail() {
                     <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ fontSize: 12 }}
-                      formatter={(value: number) => [value, 'Score']}
+                      formatter={(value) => [value as number, 'Score']}
                     />
                     <Line
                       type="monotone"

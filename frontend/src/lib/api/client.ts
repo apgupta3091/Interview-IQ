@@ -7,6 +7,7 @@ declare global {
       session?: {
         getToken(): Promise<string | null>
       }
+      signOut?: () => Promise<void>
     }
   }
 }

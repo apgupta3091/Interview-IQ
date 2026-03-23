@@ -108,7 +108,7 @@ export default function RetryPanel({ asSheet = false }: { asSheet?: boolean }) {
         // already sorted by created_at DESC, so the first occurrence is the latest).
         const seen = new Set<string>();
         const problems = (problemsResp.problems ?? []).filter((p) => {
-          if (seen.has(p.name)) return false;
+          if (!p.name || seen.has(p.name)) return false;
           seen.add(p.name);
           return true;
         });
