@@ -114,6 +114,12 @@ func main() {
 	allowedOrigins := []string{"http://localhost:5173"}
 	if frontendURL != "" && frontendURL != "http://localhost:5173" {
 		allowedOrigins = append(allowedOrigins, frontendURL)
+		// Also allow the www variant (or bare variant) of the frontend URL.
+		if len(frontendURL) > 8 && frontendURL[:12] == "https://www." {
+			allowedOrigins = append(allowedOrigins, "https://"+frontendURL[12:])
+		} else if len(frontendURL) > 8 && frontendURL[:8] == "https://" {
+			allowedOrigins = append(allowedOrigins, "https://www."+frontendURL[8:])
+		}
 	}
 
 	r.Use(cors.Handler(cors.Options{
