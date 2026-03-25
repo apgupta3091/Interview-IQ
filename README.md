@@ -2,8 +2,7 @@
 
 A LeetCode-style interview prep tracker that scores your problem-solving sessions and uses time-based decay to surface what you need to review — not what you already know cold.
 
-**Free tier** — log up to 20 problems, full scoring and decay, skill radar, problem history. No credit card required.
-**Pro tier** — unlimited problem logging, AI-powered recommendations, and priority support. Payments via Stripe.
+Live at **[interviewsiq.com](https://interviewsiq.com)**
 
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
@@ -95,7 +94,6 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 | AI recommendations | OpenAI GPT-4o-mini |
 | Rate limiting | Token-bucket per IP + per user (`golang.org/x/time/rate`) |
 | Scheduled jobs | Background goroutine (daily decay cron) |
-| Payments | Stripe (pro tier, live) |
 | Frontend | React 19 + Vite + TypeScript (strict) |
 | UI components | ShadCN/UI |
 | Charts | Recharts (radar + bar chart + line chart) |
@@ -105,6 +103,7 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 | Product analytics | PostHog |
 | Backend hosting | Railway |
 | Frontend hosting | Vercel |
+| Domain + DNS | Cloudflare (`interviewsiq.com`) |
 
 ---
 
@@ -142,22 +141,6 @@ Per-category strength is computed from the **latest attempt** at each unique pro
 - **Loading skeleton + progress bar** — feedback on every data fetch
 - **LeetCode-style difficulty badges** — color-coded Easy / Medium / Hard badges
 - **Dark/light mode** — persisted theme preference with a single toggle
-
----
-
-## Tiers
-
-| Feature | Free | Pro |
-|---|---|---|
-| Problems logged | Up to 20 | Unlimited |
-| Scoring & decay | ✓ | ✓ |
-| Skill radar & bar chart | ✓ | ✓ |
-| Problem detail & history | ✓ | ✓ |
-| Retry Panel | ✓ | ✓ |
-| AI Recommendations | — | ✓ |
-| Priority support | — | ✓ |
-
-Pro subscriptions are billed via Stripe and managed through the Stripe billing portal. Users can upgrade, downgrade, or cancel at any time — access continues until the end of the billing period.
 
 ---
 
@@ -214,15 +197,6 @@ All protected endpoints require a Clerk-issued JWT in the `Authorization: Bearer
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/api/leetcode-problems/search` | Clerk JWT | Typeahead search against the LeetCode catalog |
-
-### Billing
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/billing/status` | Clerk JWT | Returns subscription tier, problem count, and limit (0 = unlimited for Pro) |
-| `POST` | `/api/billing/checkout` | Clerk JWT | Creates a Stripe Checkout Session; body: `{"plan": "monthly"\|"annual"}` |
-| `POST` | `/api/billing/portal` | Clerk JWT | Creates a Stripe Billing Portal session for managing/cancelling a subscription |
-| `POST` | `/api/webhooks/stripe` | None (Stripe signature) | Stripe webhook handler — processes subscription lifecycle events |
 
 ### Health & Docs
 
@@ -293,7 +267,6 @@ dp, dp-2d, backtracking, greedy, intervals, math, bit-manipulation, other
 - [Docker](https://www.docker.com/) (for local PostgreSQL)
 - A free [Clerk](https://clerk.com) account — create an app and grab your keys
 - An [OpenAI](https://platform.openai.com) API key (for AI recommendations)
-- A [Stripe](https://stripe.com) account (for billing; test mode is fine locally)
 
 ### 1. Clone and set up environment variables
 
@@ -309,10 +282,6 @@ APP_ENV=development
 DATABASE_URL=postgres://interviewiq:interviewiq_secret@localhost:5432/interviewiq?sslmode=disable
 CLERK_SECRET_KEY=sk_test_...
 OPENAI_API_KEY=sk-...
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_MONTHLY=price_...
-STRIPE_PRICE_ANNUAL=price_...
 FRONTEND_URL=http://localhost:5173
 # SENTRY_DSN=  (optional locally)
 ```
@@ -321,7 +290,6 @@ FRONTEND_URL=http://localhost:5173
 ```bash
 VITE_API_URL=http://localhost:8080
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 # VITE_SENTRY_DSN=  (optional locally)
 # VITE_POSTHOG_KEY=  (optional locally)
 ```
@@ -332,7 +300,16 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 make db-up
 ```
 
-### 3. Run the backend
+### 3. Seed the LeetCode problem catalog
+
+```bash
+cd backend
+go run ./cmd/seed
+```
+
+This fetches ~3000 problems from the LeetCode API and populates the `leetcode_problems` table. Only needs to be run once.
+
+### 4. Run the backend
 
 ```bash
 make backend
@@ -340,7 +317,7 @@ make backend
 
 Migrations run automatically on first start. The API will be available at `http://localhost:8080`.
 
-### 4. Run the frontend
+### 5. Run the frontend
 
 ```bash
 cd frontend
@@ -363,23 +340,15 @@ make tidy       # Tidy go.mod/go.sum
 make db-reset   # Wipe DB volume and restart fresh
 ```
 
-### Seed realistic data (dev only)
-
-A seed script generates 79 realistic problem attempts across all categories to populate the dashboard during development:
-
-```bash
-cd backend
-SEED_USER_ID=1 go run ./cmd/seed
-```
-
 ---
 
 ## Deployment
 
 The production stack runs on:
-- **Backend + Postgres** → [Railway](https://railway.app) (Go service + managed Postgres, auto-deploys from `main` via GitHub Actions)
-- **Frontend** → [Vercel](https://vercel.com) (auto-deploys from `main` on push)
-- **Domain + DNS** → Cloudflare (`interview-iq.com`)
+- **Backend + Postgres** → [Railway](https://railway.app) — Go service + managed Postgres, auto-deploys from `main` via GitHub Actions
+- **Frontend** → [Vercel](https://vercel.com) — auto-deploys from `main` on push
+- **Domain + DNS** → Cloudflare (`interviewsiq.com`)
+- **Auth** → Clerk (custom domain: `clerk.interviewsiq.com`)
 
 ### Production environment variables
 
@@ -392,20 +361,15 @@ The production stack runs on:
 | `APP_ENV` | `production` |
 | `CLERK_SECRET_KEY` | Production Clerk secret |
 | `OPENAI_API_KEY` | Production OpenAI key |
-| `STRIPE_SECRET_KEY` | Live Stripe secret |
-| `STRIPE_WEBHOOK_SECRET` | From Stripe → Webhooks |
-| `STRIPE_PRICE_MONTHLY` | Live monthly price ID |
-| `STRIPE_PRICE_ANNUAL` | Live annual price ID |
-| `FRONTEND_URL` | `https://interview-iq.com` |
+| `FRONTEND_URL` | `https://interviewsiq.com` |
 | `SENTRY_DSN` | Backend Sentry DSN |
 
 **Vercel (frontend):**
 
 | Variable | Notes |
 |---|---|
-| `VITE_API_URL` | `https://api.interview-iq.com` |
+| `VITE_API_URL` | `https://api.interviewsiq.com` |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Production Clerk publishable key |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | Live Stripe publishable key |
 | `VITE_SENTRY_DSN` | Frontend Sentry DSN |
 | `VITE_POSTHOG_KEY` | PostHog project key |
 
@@ -413,8 +377,21 @@ The production stack runs on:
 
 | Secret | Notes |
 |---|---|
-| `RAILWAY_TOKEN` | Railway API token (Account → API Tokens) |
+| `RAILWAY_TOKEN` | Railway API token (Account → Tokens) |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Used during frontend CI build |
+
+### DNS records (Cloudflare)
+
+| Type | Name | Value | Proxy |
+|---|---|---|---|
+| `A` | `@` | `216.198.79.1` | DNS only |
+| `CNAME` | `www` | `3038b277e26a9cc4.vercel-dns-017.com` | DNS only |
+| `CNAME` | `api` | Railway CNAME target | DNS only |
+| `CNAME` | `clerk` | `frontend-api.clerk.services` | DNS only |
+| `CNAME` | `accounts` | `accounts.clerk.services` | DNS only |
+| `CNAME` | `clkmail` | `mail.vlisx5g62zh4.clerk.services` | DNS only |
+| `CNAME` | `clk._domainkey` | `dkim1.vlisx5g62zh4.clerk.services` | DNS only |
+| `CNAME` | `clk2._domainkey` | `dkim2.vlisx5g62zh4.clerk.services` | DNS only |
 
 ---
 
@@ -425,7 +402,8 @@ interview-iq/
 ├── backend/
 │   ├── Dockerfile                      # Multi-stage Alpine build for Railway
 │   ├── cmd/
-│   │   └── server/main.go              # Entry point: env, DI wiring, router setup
+│   │   ├── server/main.go              # Entry point: env, DI wiring, router setup
+│   │   └── seed/main.go               # Seeds leetcode_problems from LeetCode API
 │   ├── migrations/
 │   │   ├── 001_init.sql                # users + problems schema
 │   │   ├── 002_clerk_auth.sql          # clerk_user_id column; nullable email
@@ -435,7 +413,7 @@ interview-iq/
 │   │   ├── 005_nullable_email.sql      # make email nullable for Clerk-only sign-in
 │   │   ├── 006_original_score.sql      # original_score column; backfill + recompute decayed scores
 │   │   ├── 007_notes.sql               # notes TEXT column on problems
-│   │   └── 008_billing.sql             # stripe_customer_id + subscription_tier on users
+│   │   └── 009_problem_notes.sql       # problem notes table
 │   └── internal/
 │       ├── handlers/                   # HTTP layer — thin, no business logic
 │       │   ├── problems.go             # List, Log, GetByID
@@ -451,7 +429,7 @@ interview-iq/
 │       │   ├── user_repo.go
 │       │   ├── problem_repo.go         # Includes DecayAllProblems
 │       │   ├── category_repo.go
-│       │   └── leetcode_repo.go
+│       │   └── leetcode_problem_repo.go
 │       ├── models/                     # Domain types + scoring functions
 │       │   ├── types.go
 │       │   └── score.go               # ComputeScore, ApplyDecay
@@ -468,7 +446,6 @@ interview-iq/
         │   ├── ProblemDetail.tsx       # Score history, attempt table, notes, decay breakdown
         │   ├── LogProblem.tsx          # Log form: typeahead, multi-category, notes
         │   ├── Recommendations.tsx     # AI recommendations page
-        │   ├── Pricing.tsx             # Upgrade page with plan comparison + Stripe checkout
         │   ├── PrivacyPolicy.tsx       # Privacy policy (/privacy)
         │   └── Terms.tsx               # Terms of service (/terms)
         ├── components/
