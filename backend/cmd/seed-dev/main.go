@@ -54,14 +54,18 @@ func main() {
 	}
 	log.Printf("dev seed user id = %d", userID)
 
-	// Skip seeding if the user already has problems to stay idempotent.
+	// Skip seeding if the user already has problems to stay idempotent,
+	// unless FORCE=true is set in the environment.
 	existing, err := problemRepo.ListByUser(ctx, userID)
 	if err != nil {
 		log.Fatalf("list existing problems: %v", err)
 	}
 	if len(existing) > 0 {
-		log.Printf("seed user already has %d problems — skipping insert", len(existing))
-		return
+		if os.Getenv("FORCE") != "true" {
+			log.Printf("seed user already has %d problems — skipping insert (set FORCE=true to override)", len(existing))
+			return
+		}
+		log.Printf("FORCE=true: proceeding despite %d existing problems", len(existing))
 	}
 
 	// Use a fixed seed so the generated data is deterministic across runs.

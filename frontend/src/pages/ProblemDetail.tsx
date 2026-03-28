@@ -255,6 +255,12 @@ export default function ProblemDetail() {
                     : '—'}
                 </dd>
               </div>
+              {problem.notes && (
+                <div className="col-span-2">
+                  <dt className="text-muted-foreground text-xs">Attempt notes</dt>
+                  <dd className="font-medium whitespace-pre-wrap">{problem.notes}</dd>
+                </div>
+              )}
             </dl>
           </CardContent>
         </Card>
@@ -390,6 +396,9 @@ export default function ProblemDetail() {
                     <th className="px-4 py-2 text-center font-medium">Time</th>
                     <th className="px-4 py-2 text-center font-medium">Peeked</th>
                     <th className="px-4 py-2 text-right font-medium">Score</th>
+                    {history.some((h) => h.notes) && (
+                      <th className="px-4 py-2 text-left font-medium">Notes</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -408,6 +417,11 @@ export default function ProblemDetail() {
                       <td className={`px-4 py-2 text-right font-mono font-medium ${scoreColor(h.score ?? 0)}`}>
                         {h.score}
                       </td>
+                      {history.some((entry) => entry.notes) && (
+                        <td className="px-4 py-2 text-sm text-muted-foreground whitespace-pre-wrap max-w-xs">
+                          {h.notes ?? '—'}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
